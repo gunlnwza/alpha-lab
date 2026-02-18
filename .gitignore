@@ -8,6 +8,7 @@
 data
 
 # Pictures
+imgs
 *.png
 *.jpg
 *.jpeg

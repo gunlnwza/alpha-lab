@@ -1,4 +1,9 @@
-pandas
-statsmodels
-seaborn
 ipykernel
+
+pandas
+
+statsmodels
+scikit-learn
+tensorflow
+
+seaborn
