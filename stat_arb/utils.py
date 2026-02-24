@@ -19,7 +19,7 @@ def load_investing_dot_com_data(filename: str, dir="data/investing.com") -> pd.D
     return df
 
 
-def load_tradingview_data(filename: str, dir="data/tradingview", unix=True) -> pd.DataFrame:
+def load_tradingview_data(filename: str, dir="backup_data_18_Feb/tradingview") -> pd.DataFrame:
     df = pd.read_csv(f"{dir}/{filename}.csv")
     df["time"] = pd.to_datetime(df['time'], unit='s')
     df.index = df["time"]
@@ -27,17 +27,7 @@ def load_tradingview_data(filename: str, dir="data/tradingview", unix=True) -> p
     return df
 
 
-###############################################################################
-
-def join_close_prices(dfs: dict[str, pd.DataFrame]) -> pd.DataFrame:
-    lst = [df['close'].rename(name) for name, df in dfs.items()]
-    df = pd.concat(lst, axis=1).dropna()
+def join_close_prices(df1, df2) -> pd.DataFrame:
+    lst = [df1['close'].rename('a'), df2['close'].rename('b')]
+    df = pd.concat(lst, axis=1, sort=True).dropna()
     return df
-
-
-###############################################################################
-
-if __name__ == "__main__":
-    df = load_tradingview_data('kbankf')
-    print(df.dtypes)
-    print(df)

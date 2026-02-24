@@ -6,6 +6,10 @@
 
 # Data
 data
+*_data
+backup_*
+*.parquet
+*.csv
 
 # Pictures
 imgs
@@ -18,4 +22,4 @@ venv
 __pycache__
 
 # .ipynb
-experiment
+2026-*

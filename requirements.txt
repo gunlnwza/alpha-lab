@@ -1,6 +1,8 @@
 ipykernel
 
 pandas
+pandas-ta
+pyarrow
 
 statsmodels
 scikit-learn
