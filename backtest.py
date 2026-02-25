@@ -28,16 +28,13 @@ class ForexData:
         return ForexData(symbol, ohlc)
     
 
-class BacktestResult:
+class Account:
     SL_VOL_MUL = 10
 
     def __init__(self, data: ForexData):
-        self.symbol = data.symbol.upper()
-
         df = data.ohlc
         self.close = df["close"].to_numpy()
 
-        # account / orders
         self.entry_idx = []
         self.exit_idx = []
         self.position = 0
@@ -49,9 +46,6 @@ class BacktestResult:
         self.vol = ta.atr(df["high"], df["low"], df["close"], length=14).to_numpy()
         self.ma_short = ta.linreg(df["close"], 20).to_numpy()
         self.ma_long = ta.kama(df["close"], 50).to_numpy()
-
-    def all_notna(self, i: int):
-        return not (np.isnan(self.vol[i]) or np.isnan(self.ma_short[i]) or np.isnan(self.ma_long[i]))
 
     def update_trailing_stop(self, i: int):
         if not np.isnan(self.vol[i]):
@@ -70,18 +64,27 @@ class BacktestResult:
         self.trailing_stop = self.close[i] - self.SL_VOL_MUL * self.vol[i]
         self.entry_idx.append(i)
 
+
+class BacktestResult:
+    def __init__(self, data: ForexData, acc: Account):
+        self.symbol = data.symbol.upper()
+        self.acc = acc
+
     def report(self):
-        print(f"{self.symbol} | Final PnL: {self.pnl:.4f}")
+        print(f"{self.symbol} | Final PnL: {self.acc.pnl:.4f}")
 
     def visualize(self):
-        plt.figure(figsize=(14, 6))
-        plt.plot(self.close, label="Close Price", linewidth=1)
+        close = self.acc.close
+        entry = self.acc.entry_idx
+        exit = self.acc.exit_idx
 
-        if self.entry_idx:  # Plot entries
-            plt.scatter(self.entry_idx, self.close[np.array(self.entry_idx)],
+        plt.figure(figsize=(14, 6))
+        plt.plot(close, label="Close Price", linewidth=1)
+        if entry:
+            plt.scatter(entry, close[np.array(entry)],
                         marker="^", color="green", s=80, label="Entry")
-        if self.exit_idx:  # Plot exits
-            plt.scatter(self.exit_idx, self.close[np.array(self.exit_idx)],
+        if exit:
+            plt.scatter(exit, close[np.array(exit)],
                         marker="v", color="red", s=80, label="Exit")
 
         plt.title(f"Backtest Visualization {self.symbol.upper()}")
@@ -92,24 +95,29 @@ class BacktestResult:
 
 
 def backtest(data: ForexData) -> BacktestResult:
-    res = BacktestResult(data)
+    acc = Account(data)
 
     clf = load_model("logreg_v1")
-    df = data.ohlc
-
-    X = get_features(df)
+    X = get_features(data.ohlc)
     pred = clf.predict(X)
+
     for i in range(len(pred)):
-        if res.position == 0:
-            if pred[i] == 1 and res.all_notna(i) and res.ma_short[i] > res.ma_long[i]:  # Enter long
-                res.enter_long(i)
-        elif res.position == 1:  # Manage open position with trailing stop
-            res.update_trailing_stop(i)
-            res.exit_if_hit_stop(i)
+        if acc.position == 0: 
+            if (pred[i] == 1
+                and not np.isnan(acc.vol[i])
+                and not np.isnan(acc.ma_short[i])
+                and not np.isnan(acc.ma_long[i])
+                and acc.ma_short[i] > acc.ma_long[i]
+            ):  # Enter long
+                acc.enter_long(i)
+        elif acc.position == 1:  # Manage open position with trailing stop
+            acc.update_trailing_stop(i)
+            acc.exit_if_hit_stop(i)
 
-    if res.position == 1:  # Close any open position at final price
-        pnl += res.close[-1] - res.entry_price
+    if acc.position == 1:  # Close any open position at final price
+        pnl += res.close[-1] - acc.entry_price
 
+    res = BacktestResult(data, acc)
     return res
 
 
