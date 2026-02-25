@@ -8,10 +8,13 @@
 data
 *_data
 backup_*
+
+models
+
 *.parquet
 *.csv
 
-# Pictures
+# Images
 imgs
 *.png
 *.jpg
@@ -20,6 +23,7 @@ imgs
 # Python
 venv
 __pycache__
+*.pkl
 
 # .ipynb
 2026-*
