@@ -23,46 +23,63 @@ class ForexData:
     
     @classmethod
     def from_file(cls, source: str, symbol: str, tf: str):
-        ohlc = load_parquet("twelve_data", symbol, "5min")
+        ohlc = load_parquet(source, symbol, tf)
         ohlc = drop_weekend(ohlc)
         return ForexData(symbol, ohlc)
-    
+
+
+class BuyOrder:
+    def __init__(self, idx: int, close: float, sl: float):
+        self.entry_idx = idx
+        self.entry_price = close
+
+        self.exit_idx = None
+        self.exit_price = None
+
+        self.sl = sl
+
+        self.pnl = None
+
+    def close(self, idx: int, close: float):
+        self.pnl = close - self.entry_price
+        self.exit_idx = idx
+        self.exit_price = close
+
+    def sl_hit(self, idx: int):
+        self.close(idx, self.sl)
 
 class Account:
     SL_VOL_MUL = 10
 
     def __init__(self, data: ForexData):
+        self.closed_orders = []
+        self.order: BuyOrder | None = None
+        self.pnl = 0.0
+
         df = data.ohlc
         self.close = df["close"].to_numpy()
-
-        self.entry_idx = []
-        self.exit_idx = []
-        self.position = 0
-        self.entry_price = 0.0
-        self.pnl = 0.0
-        self.trailing_stop = 0.0
-
-        # indicators
         self.vol = ta.atr(df["high"], df["low"], df["close"], length=14).to_numpy()
         self.ma_short = ta.linreg(df["close"], 20).to_numpy()
         self.ma_long = ta.kama(df["close"], 50).to_numpy()
 
+    def enter_long(self, i: int):
+        sl = self.close[i] - self.SL_VOL_MUL * self.vol[i]
+        self.order = BuyOrder(i, self.close[i], sl)
+
+    def close_order(self, idx: int, close: float):
+        self.order.close(idx, close)
+        self.pnl += self.order.pnl
+        self.closed_orders.append(self.order)
+        self.order = None
+
     def update_trailing_stop(self, i: int):
         if not np.isnan(self.vol[i]):
             new_stop = self.close[i] - self.SL_VOL_MUL * self.vol[i]
-            self.trailing_stop = max(self.trailing_stop, new_stop)
+            self.order.sl = max(self.order.sl, new_stop)
 
-    def exit_if_hit_stop(self, i: int):
-        if self.close[i] <= self.trailing_stop:
-            self.pnl += self.trailing_stop - self.entry_price
-            self.position = 0
-            self.exit_idx.append(i)
-
-    def enter_long(self, i: int):
-        self.position = 1
-        self.entry_price = self.close[i]
-        self.trailing_stop = self.close[i] - self.SL_VOL_MUL * self.vol[i]
-        self.entry_idx.append(i)
+    def exit_if_hit_stop(self, idx: int):
+        if self.close[idx] <= self.order.sl:
+            self.close_order(idx, self.order.sl)
 
 
 class BacktestResult:
@@ -75,8 +92,8 @@ class BacktestResult:
 
     def visualize(self):
         close = self.acc.close
-        entry = self.acc.entry_idx
-        exit = self.acc.exit_idx
+        entry = [o.entry_idx for o in self.acc.closed_orders]
+        exit = [o.exit_idx for o in self.acc.closed_orders]
 
         plt.figure(figsize=(14, 6))
         plt.plot(close, label="Close Price", linewidth=1)
@@ -102,7 +119,7 @@ def backtest(data: ForexData) -> BacktestResult:
     pred = clf.predict(X)
 
     for i in range(len(pred)):
-        if acc.position == 0: 
+        if not acc.order:
             if (pred[i] == 1
                 and not np.isnan(acc.vol[i])
                 and not np.isnan(acc.ma_short[i])
@@ -110,12 +127,12 @@ def backtest(data: ForexData) -> BacktestResult:
                 and acc.ma_short[i] > acc.ma_long[i]
             ):  # Enter long
                 acc.enter_long(i)
-        elif acc.position == 1:  # Manage open position with trailing stop
+        else:  # Manage open position with trailing stop
             acc.update_trailing_stop(i)
             acc.exit_if_hit_stop(i)
 
-    if acc.position == 1:  # Close any open position at final price
-        pnl += res.close[-1] - acc.entry_price
+    if acc.order:  # Close any open position at final price
+        acc.close_order(len(acc.close) - 1, acc.close[-1])
 
     res = BacktestResult(data, acc)
     return res
