@@ -9,11 +9,11 @@ import matplotlib.pyplot as plt
 from utils import load_parquet, drop_weekend
 from features import get_features
 
+GATE_MA_SHORT_PERIOD = 20
+GATE_MA_LONG_PERIOD = 50
 
-def load_model(name: str):
-    path = Path("models", f"{name}.pkl")
-    clf = joblib.load(path)
-    return clf
+ATR_PERIOD = 20
+SL_VOL_MUL = 12
 
 
 class ForexData:
@@ -31,14 +31,16 @@ class ForexData:
 class SimulationData:
     def __init__(self, forex_data: ForexData):
         self.forex_data = forex_data
+        self._ohlc = forex_data.ohlc
 
-        ohlc = forex_data.ohlc
-        self.close = ohlc["close"].to_numpy()
-        self.low = ohlc["low"].to_numpy()
+        self.open = self._ohlc["open"].to_numpy()
+        self.high = self._ohlc["high"].to_numpy()
+        self.low = self._ohlc["low"].to_numpy()
+        self.close = self._ohlc["close"].to_numpy()
 
-        self.vol = ohlc.ta.atr(14).to_numpy()
-        self.ma_short = ta.linreg(ohlc["close"], 20).to_numpy()
-        self.ma_long = ta.kama(ohlc["close"], 50).to_numpy()
+        self.vol = self._ohlc.ta.atr(ATR_PERIOD).to_numpy()
+        self.ma_short = ta.linreg(self._ohlc["close"], GATE_MA_SHORT_PERIOD).to_numpy()
+        self.ma_long = ta.kama(self._ohlc["close"], GATE_MA_LONG_PERIOD).to_numpy()
 
 
 class BuyOrder:
@@ -69,8 +71,8 @@ class Account:
         self.pnl = 0.0
 
     @classmethod
-    def calculate_sl(cls, close, vol, sl_vol_mul=10):
-        return close - sl_vol_mul * vol
+    def calculate_sl(cls, close, vol):
+        return close - SL_VOL_MUL * vol
 
     def open_order(self, idx: int, close: float, vol: float):
         sl = self.calculate_sl(close, vol)
@@ -116,32 +118,36 @@ class BacktestResult:
 def backtest(forex_data: ForexData) -> BacktestResult:
     acc = Account()
     data = SimulationData(forex_data)
+    clf = joblib.load("models/logreg_v1.pkl")
 
-    clf = load_model("logreg_v1")
     X = get_features(data.forex_data.ohlc)
     pred = clf.predict(X)
+    pred = pd.Series(pred, index=X.index)
+    data._ohlc["pred"] = pred
 
-    # for i in range(len(pred)):
-    #     pred[i] = pred[i]
-    # assert len(data.ohlc) == len(pred)
-
-    for i in range(len(pred)):
-        if not acc.order:  # if no order, wait for signal
-            if (pred[i] == 1
+    for i in range(len(forex_data.ohlc)):
+        pred = data._ohlc["pred"].iloc[i]
+        if np.isnan(pred):
+            continue
+        # if no order, wait for signal
+        if not acc.order:
+            if (pred == 1
                 and not np.isnan(data.vol[i])
                 and not np.isnan(data.ma_short[i])
                 and not np.isnan(data.ma_long[i])
                 and data.ma_short[i] > data.ma_long[i]  
             ):
                 acc.open_order(i, data.close[i], data.vol[i])
-        else:  # if already have order, keep an eye
-            if data.low[i] <= acc.order.sl: # check if stop loss
+        else:
+            # check if stop loss
+            if data.low[i] <= acc.order.sl:
                 acc.close_order(i, acc.order.sl)
-            if not acc.order:  # if order is closed, continue
+            if not acc.order:
                 continue
 
-            if not np.isnan(data.vol[i]):  # adjust stop loss if still have order
-                new_sl = acc.calculate_sl(data.close[i], data.vol[i])
+            # adjust stop loss if still have order
+            if not np.isnan(data.vol[i]):
+                new_sl = acc.calculate_sl(data.high[i], data.vol[i])
                 acc.order.sl = max(acc.order.sl, new_sl)
 
     if acc.order:
