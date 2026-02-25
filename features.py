@@ -46,14 +46,14 @@ def _compute_features(df: pd.DataFrame) -> pd.DataFrame:
     ]]
 
 
-def get_inputs(df: pd.DataFrame) -> pd.DataFrame:
+def get_features(df: pd.DataFrame) -> pd.DataFrame:
     df = df.copy()
     X = _compute_features(df).dropna()
     return X
 
 
-def get_inputs_labels(df: pd.DataFrame, signals: pd.Series) -> tuple[pd.DataFrame, pd.Series]:
+def get_features_labels(df: pd.DataFrame, signals: pd.Series) -> tuple[pd.DataFrame, pd.Series]:
     """Trim both `X`'s and `y`'s NaN, removing the warmup period in engineered `df`"""
-    X = get_inputs(df)
+    X = get_features(df)
     y = signals.reindex(X.index).astype("int8")  # safe alignment
     return X, y

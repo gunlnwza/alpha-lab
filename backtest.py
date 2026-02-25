@@ -7,7 +7,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 from utils import load_parquet, drop_weekend
-from features import get_inputs
+from features import get_features
 
 
 def load_model(name: str):
@@ -22,90 +22,138 @@ def load_data(symbol: str):
     return df
 
 
-class Record:
-    SL_VOL_MUL = 10
+class Order:
+    def __init__(self, close, sl):
+        self.position = 1
+        self.entry_price = close
+        self.sl = sl
 
-    def __init__(self, symbol: str, df: pd.DataFrame):
-        self.symbol = symbol.upper()
-        self.close = df["close"].to_numpy()
-
-        # account / orders
+class Account:
+    def __init__(self):
         self.entry_idx = []
         self.exit_idx = []
-        self.position = 0
-        self.entry_price = 0.0
         self.pnl = 0.0
-        self.trailing_stop = 0.0
+        self.order = None
 
-        # indicators
-        self.vol = ta.atr(df["high"], df["low"], df["close"], length=14).to_numpy()
-        self.ma_short = ta.linreg(df["close"], 20).to_numpy()
-        self.ma_long = ta.kama(df["close"], 50).to_numpy()
+    def enter_long(self, close: float, sl: float, enter_idx: int):
+        if close <= sl:
+            raise ValueError("Invalid stop loss")
+        if self.order:
+            raise ValueError("Already have order")
 
-    def all_notna(self, i: int):
-        return not (np.isnan(self.vol[i]) or np.isnan(self.ma_short[i]) or np.isnan(self.ma_long[i]))
+        self.order = Order(close, sl)
+        self.entry_idx.append(enter_idx)
 
-    def update_trailing_stop(self, i: int):
-        if not np.isnan(self.vol[i]):
-            new_stop = self.close[i] - self.SL_VOL_MUL * self.vol[i]
-            self.trailing_stop = max(self.trailing_stop, new_stop)
+    def _v_have_order(self):
+        if self.order is None:
+            raise ValueError("No order at the moment")
 
-    def exit_if_hit_stop(self, i: int):
-        if self.close[i] <= self.trailing_stop:
-            self.pnl += self.trailing_stop - self.entry_price
-            self.position = 0
-            self.exit_idx.append(i)
+    def close_order(self, close: float, exit_idx: int):
+        self._v_have_order()
+        self.pnl += close - self.order.entry_price
+        self.order = None
+        self.exit_idx.append(exit_idx)
 
-    def enter_long(self, i: int):
-        self.position = 1
-        self.entry_price = self.close[i]
-        self.trailing_stop = self.close[i] - self.SL_VOL_MUL * self.vol[i]
-        self.entry_idx.append(i)
+    def sl_hit(self, exit_idx: int):
+        self._v_have_order()
+        self.close_order(self.order.sl, exit_idx)  # price will hit sl first before close is concluded
 
 
-def report(rec: Record):
-    print(f"{rec.symbol} | Final PnL: {rec.pnl:.4f}")
+class BacktestResult:
+    def __init__(self, symbol: str, ohlc: pd.DataFrame, acc: Account):
+        self.symbol = symbol.upper()
+        self.ohlc = ohlc
+        self.acc = acc
 
 
-def visualize(rec: Record):
+def report(res: BacktestResult):
+    print(f"{res.symbol} | Final PnL: {res.acc.pnl:.4f}")
+
+
+def visualize(res: BacktestResult):
     plt.figure(figsize=(14, 6))
-    plt.plot(rec.close, label="Close Price", linewidth=1)
+    close = res.ohlc.close.to_numpy()
 
-    if rec.entry_idx:  # Plot entries
-        plt.scatter(rec.entry_idx, rec.close[np.array(rec.entry_idx)],
+    plt.plot(close, label="Close Price", linewidth=1)
+
+    if res.acc.entry_idx:  # Plot entries
+        plt.scatter(res.acc.entry_idx, close[np.array(res.acc.entry_idx)],
                     marker="^", color="green", s=80, label="Entry")
-    if rec.exit_idx:  # Plot exits
-        plt.scatter(rec.exit_idx, rec.close[np.array(rec.exit_idx)],
+    if res.acc.exit_idx:  # Plot exits
+        plt.scatter(res.acc.exit_idx, close[np.array(res.acc.exit_idx)],
                     marker="v", color="red", s=80, label="Exit")
 
-    plt.title(f"Backtest Visualization {rec.symbol.upper()}")
+    plt.title(f"Backtest Visualization {res.symbol.upper()}")
     plt.legend()
     plt.grid(alpha=0.3)
     plt.tight_layout()
     plt.show()
 
 
+class SignalExpert:
+    """Tactical logistic regression + Strategic short/long MAs gate"""
+    
+    def __init__(self, clf):
+        self.clf = clf
+
+    def predict(self, ohlc: pd.DataFrame) -> pd.Series:
+        X = get_features(ohlc)
+
+        # Raw model prediction aligned to feature index
+        y_pred_raw = self.clf.predict(X)
+        y_pred = pd.Series(y_pred_raw, index=X.index)
+
+        # Strategic MA gate (full-length series)
+        ma_short = ta.linreg(ohlc["close"], 20)
+        ma_long = ta.kama(ohlc["close"], 50)
+        ma_filter = ma_short > ma_long
+
+        # Reindex prediction to full OHLC index, fill warmup zone with False
+        y_pred = y_pred.reindex(ohlc.index, fill_value=False)
+
+        # Combine tactical + strategic
+        y_pred = y_pred & ma_filter.fillna(False)
+
+        return y_pred
+
+
+class RiskExpert:
+    def __init__(self):
+        self.sl_vol_mul = 10
+
+    def compute_sl(self, close: float, vol: float):
+        return close - self.sl_vol_mul * vol
+
+
 def backtest_one(symbol: str):
-    clf = load_model("logreg_v1")
-    df = load_data(symbol)
+    ohlc = load_data(symbol)
+    close = ohlc.close.to_numpy()
+    vol = ohlc.ta.atr(14).to_numpy()
 
-    rec = Record(symbol, df)
+    acc = Account()  # only do accounting stuff, no trade related activity
+    sig_expert = SignalExpert(load_model("logreg_v1"))  # handle signal
+    risk_expert = RiskExpert()  # handle SL, later lot sizing
 
-    X = get_inputs(df)
-    pred = clf.predict(X)
+    pred = sig_expert.predict(ohlc).to_numpy()  # finalized signals
+
     for i in range(len(pred)):
-        if rec.position == 0:
-            if pred[i] == 1 and rec.all_notna(i) and rec.ma_short[i] > rec.ma_long[i]:  # Enter long
-                rec.enter_long(i)
-        elif rec.position == 1:  # Manage open position with trailing stop
-            rec.update_trailing_stop(i)
-            rec.exit_if_hit_stop(i)
+        if not acc.order:
+            if pred[i] == 1:
+                sl = risk_expert.compute_sl(close[i], vol[i])
+                acc.enter_long(close[i], sl, i)
+        else:
+            if close[i] < acc.order.sl:
+                acc.sl_hit(i)
+                continue
+            new_sl = risk_expert.compute_sl(close[i], vol[i])
+            acc.order.sl = max(acc.order.sl, new_sl)
 
-    if rec.position == 1:  # Close any open position at final price
-        pnl += rec.close[-1] - rec.entry_price
+    if acc.order:
+        acc.close_order(close[-1], len(close))
 
-    report(rec)
-    visualize(rec)
+    res = BacktestResult(symbol, ohlc, acc)
+    report(res)
+    visualize(res)
 
 
 def main():

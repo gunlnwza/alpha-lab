@@ -12,7 +12,7 @@ from sklearn.linear_model import LogisticRegression
 from sklearn.metrics import confusion_matrix, classification_report
 
 from utils import load_parquet, drop_weekend, divide_timeseries, triple_barrier_labels
-from features import get_inputs, get_inputs_labels
+from features import get_features, get_features_labels
 
 
 def plot_buy_labels(df: pd.DataFrame, signals: pd.Series):
@@ -44,7 +44,7 @@ def validate_train_result(X_test, y_test, clf, name):
 
 
 def visual_backtest(df, clf, name):
-    X = get_inputs(df)
+    X = get_features(df)
 
     THRESHOLD = 0.5
     proba = clf.predict_proba(X)[:, 1]   # probability of class 1
@@ -95,7 +95,7 @@ def main():
     if len(sys.argv) == 2:
         sys.exit()
 
-    X, y = get_inputs_labels(df, signals)
+    X, y = get_features_labels(df, signals)
     X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.5, shuffle=False, random_state=42)
 
     lr_clf = LogisticRegression(random_state=42)
