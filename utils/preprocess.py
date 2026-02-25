@@ -1,0 +1,22 @@
+import pandas as pd
+
+
+def drop_weekend(df: pd.DataFrame) -> pd.DataFrame:
+    "Remove Saturday and Sunday (UTC time)."
+    weekday = df.index.weekday
+    return df[((weekday >= 0) & (weekday <= 4))]
+
+
+def divide_timeseries(df: pd.DataFrame, chunk_size: str = "W") -> list[pd.DataFrame]:
+    """
+    Divide timeseries dataframe into chunks of wanted size.
+
+    - `chunk_size` (like what Pandas use):
+        - 'h': hour
+        - 'D': day
+        - 'W': week
+        - 'M': month
+    """
+    if chunk_size not in ('h', 'D', 'W', 'M'):
+        raise ValueError("Invalid chunk size")
+    return [g for _, g in df.groupby(pd.Grouper(freq=chunk_size))]
