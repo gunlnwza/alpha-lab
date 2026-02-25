@@ -6,41 +6,49 @@ import pandas_ta as ta
 import numpy as np
 import matplotlib.pyplot as plt
 
-from utils import load_parquet, drop_weekend
+from utils import load_parquet, drop_weekend, inverse_ohlcv
 from features import get_features
 
 GATE_MA_SHORT_PERIOD = 50
 GATE_MA_LONG_PERIOD = 200
 
-ATR_PERIOD = 20
-SL_VOL_MUL = 12
+ATR_PERIOD = 10
+SL_VOL_MUL = 10
 
+# TODO: different configs for different assets
 
 class ForexData:
-    def __init__(self, symbol: str, ohlc: pd.DataFrame):
+    def __init__(self, source: str, symbol: str, tf: str):
+        self.source = source
         self.symbol = symbol.upper()
-        self.ohlc = ohlc
-    
-    @classmethod
-    def from_file(cls, source: str, symbol: str, tf: str):
-        ohlc = load_parquet(source, symbol, tf)
-        ohlc = drop_weekend(ohlc)
-        return ForexData(symbol, ohlc)
+        self.tf = tf
+
+        self.ohlcv = load_parquet(source, symbol, tf)
+        # self.ohlcv = drop_weekend(self.ohlcv)
+
+        self.inv_ohlcv = inverse_ohlcv(self.ohlcv)
+
+    def __str__(self):
+        return f"{self.source}'s {self.symbol} ({self.tf})"
+
+    def __repr__(self):
+        return f"ForexData({self.source}, {self.symbol}, {self.tf})"
 
 
 class SimulationData:
     def __init__(self, forex_data: ForexData):
         self.forex_data = forex_data
-        self._ohlc = forex_data.ohlc
+        # self._ohlcv = forex_data.ohlcv
+        self._ohlcv = forex_data.inv_ohlcv
 
-        self.open = self._ohlc["open"].to_numpy()
-        self.high = self._ohlc["high"].to_numpy()
-        self.low = self._ohlc["low"].to_numpy()
-        self.close = self._ohlc["close"].to_numpy()
+        self.open = self._ohlcv["open"].to_numpy()
+        self.high = self._ohlcv["high"].to_numpy()
+        self.low = self._ohlcv["low"].to_numpy()
+        self.close = self._ohlcv["close"].to_numpy()
 
-        self.vol = self._ohlc.ta.atr(ATR_PERIOD).to_numpy()
-        self.ma_short = ta.ema(self._ohlc["close"], GATE_MA_SHORT_PERIOD).to_numpy()
-        self.ma_long = ta.ema(self._ohlc["close"], GATE_MA_LONG_PERIOD).to_numpy()
+        self.vol = self._ohlcv.ta.atr(ATR_PERIOD).to_numpy()
+        self.ma_short = ta.ema(self._ohlcv["close"], GATE_MA_SHORT_PERIOD).to_numpy()
+        self.ma_long = ta.ema(self._ohlcv["close"], GATE_MA_LONG_PERIOD).to_numpy()
 
 
 class BuyOrder:
@@ -88,77 +96,80 @@ class Account:
 class BacktestResult:
     def __init__(self, data: SimulationData, acc: Account):
         self.data = data
-        self.symbol = self.data.forex_data.symbol.upper()
-
         self.acc = acc
 
     def report(self):
-        print(f"{self.symbol} | Final PnL: {self.acc.pnl:.4f}")
+        print(f"{self.data.forex_data} | Final PnL: {self.acc.pnl:.4f}")
 
     def visualize(self):
-        close = self.data.close
-        entry = [o.entry_idx for o in self.acc.closed_orders]
-        exit = [o.exit_idx for o in self.acc.closed_orders]
-
         plt.figure(figsize=(14, 6))
 
-        plt.plot(close, label="Close Price", linewidth=1)
+        plt.plot(self.data.close, label="Close Price", linewidth=1)
         plt.plot(self.data.ma_short, label="Gate MA Short", linewidth=1)
         plt.plot(self.data.ma_long, label="Gate MA Long", linewidth=1)
 
-        if entry:
-            plt.scatter(entry, close[np.array(entry)], marker="^", color="green", s=80, label="Entry")
-        if exit:
-            plt.scatter(exit, close[np.array(exit)], marker="v", color="red", s=80, label="Exit")
+        for order in self.acc.closed_orders:
+            c = "green" if order.pnl >= 0 else "red"
+            plt.plot([order.entry_idx, order.exit_idx], [order.entry_price, order.exit_price], color=c, lw=5)
 
-        plt.title(f"Backtest Visualization {self.symbol}")
+        plt.title(f"Backtest Visualization | {self.data.forex_data}")
         plt.legend()
         plt.grid(alpha=0.3)
         plt.tight_layout()
         plt.show()
 
-# TODO: two separate model
-# 1. Tactical (low level, low TF)
-# 2. Strategic (high level, high TF)
+
+def get_signals(data: SimulationData):
+    # Two separate models
+    # 1. Tactical (low level, low TF)
+    X = get_features(data._ohlcv)
+    low_tf_clf = joblib.load("models/logreg_v1.pkl")
+    low_tf_raw = pd.Series(low_tf_clf.predict(X), index=X.index)
+
+    # Align tactical signal to full OHLC index
+    low_tf = low_tf_raw.reindex(data._ohlcv.index)
+
+    # 2. Strategic (high level, high TF)
+    ma_short = pd.Series(data.ma_short, index=data._ohlcv.index)
+    ma_long = pd.Series(data.ma_long, index=data._ohlcv.index)
+    high_tf = (ma_short > ma_long)
+
+    # Final combined signal
+    # Only valid where low_tf exists AND gate is True
+    pred_full = (low_tf == 1) & (high_tf == True)
+
+    return pred_full
+
 
 def backtest(forex_data: ForexData) -> BacktestResult:
     acc = Account()
     data = SimulationData(forex_data)
 
-    X = get_features(data._ohlc)
-    clf = joblib.load("models/logreg_v1.pkl")
-    pred_raw = clf.predict(X)
-    pred_s = pd.Series(pred_raw, index=X.index)
+    pred_full = get_signals(data)
+    assert len(pred_full) == len(data._ohlcv)
+    assert pred_full.index.to_list() == data._ohlcv.index.to_list()
 
-    pred_full = pd.Series(np.nan, index=data._ohlc.index, dtype="int8")
-    pred_full.loc[pred_s.index] = pred_s.astype("int8")
-
-    data._ohlc["pred"] = pred_full
-
-    for i in range(len(forex_data.ohlc)):
-        pred = data._ohlc["pred"].iloc[i]
-
+    for i in range(len(data._ohlcv)):
+        pred = pred_full.iloc[i]
         # if no order, wait for signal
         if not acc.order:
-            if (not np.isnan(pred)
-                and pred == 1
-                and not np.isnan(data.vol[i])
-                and not np.isnan(data.ma_short[i])
-                and not np.isnan(data.ma_long[i])
-                and data.ma_short[i] > data.ma_long[i]
-            ):
+            if not np.isnan(pred) and pred == 1 and not np.isnan(data.vol[i]):
                 acc.open_order(i, data.close[i], data.vol[i])
+                # print(i, "open at", data.close[i], data._ohlcv.iloc[i].to_list())
+            else:
+                # print(i, "warm up", data._ohlcv.iloc[i].to_list())
+                pass
         else:
             # check if stop loss
-            if data.low[i] <= acc.order.sl:  # if low hooked sl, close
+            if acc.order and data.low[i] < acc.order.sl:  # if low hooked sl, close
+                # print(i, "close at", acc.order.sl, data._ohlcv.iloc[i].to_list())
                 acc.close_order(i, acc.order.sl)
-            if not acc.order:
-                continue
 
             # adjust stop loss if still have order
-            if not np.isnan(data.vol[i]):
+            if acc.order and not np.isnan(data.vol[i]):
                 new_sl = calculate_sl(data.high[i], data.vol[i])  # update with high
                 acc.order.sl = max(acc.order.sl, new_sl)
+                # print(i, "adjust sl to", acc.order.sl, data._ohlcv.iloc[i].to_list())
 
     if acc.order:
         acc.close_order(len(data.close) - 1, data.close[-1])
@@ -168,10 +179,14 @@ def backtest(forex_data: ForexData) -> BacktestResult:
 
 
 def main():
-    symbols = ["XAUUSD"]
-    # symbols = ["XAUUSD", "USDJPY", "EURUSD"]
+    # symbols = ["XAUUSD", "USDJPY", "EURUSD", "AUDUSD"]
+    # symbols = ["XAUUSD"]
+    symbols = ["USDJPY"]
+    # symbols = ["USDCAD"]
+    # symbols = ["AUDUSD"]
     for s in symbols:
-        data = ForexData.from_file("twelve_data", s, "5min")
+        data = ForexData("twelve_data", s, "5min")
+
         res = backtest(data)
         res.report()
         res.visualize()

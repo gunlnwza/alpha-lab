@@ -2,7 +2,7 @@ import pandas as pd
 
 
 def drop_weekend(df: pd.DataFrame) -> pd.DataFrame:
-    "Remove Saturday and Sunday (UTC time)."
+    """Remove Saturday and Sunday (UTC time)."""
     weekday = df.index.weekday
     return df[((weekday >= 0) & (weekday <= 4))]
 
@@ -20,3 +20,14 @@ def divide_timeseries(df: pd.DataFrame, chunk_size: str = "W") -> list[pd.DataFr
     if chunk_size not in ('h', 'D', 'W', 'M'):
         raise ValueError("Invalid chunk size")
     return [g for _, g in df.groupby(pd.Grouper(freq=chunk_size))]
+
+
+def inverse_ohlcv(ohlcv: pd.DataFrame):
+    """Get the reciprocal prices"""
+    return pd.DataFrame({
+        "open": 1 / ohlcv["open"],
+        "high": 1 / ohlcv["low"],
+        "low": 1 / ohlcv["high"],
+        "close": 1 / ohlcv["close"],
+        "volume": ohlcv["volume"]
+    })
