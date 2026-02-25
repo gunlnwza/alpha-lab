@@ -49,8 +49,6 @@ class BuyOrder:
         self.close(idx, self.sl)
 
 class Account:
-    SL_VOL_MUL = 10
-
     def __init__(self, data: ForexData):
         self.closed_orders = []
         self.order: BuyOrder | None = None
@@ -58,12 +56,18 @@ class Account:
 
         df = data.ohlc
         self.close = df["close"].to_numpy()
+        self.low = df["low"].to_numpy()
+
         self.vol = ta.atr(df["high"], df["low"], df["close"], length=14).to_numpy()
         self.ma_short = ta.linreg(df["close"], 20).to_numpy()
         self.ma_long = ta.kama(df["close"], 50).to_numpy()
 
-    def enter_long(self, i: int):
-        sl = self.close[i] - self.SL_VOL_MUL * self.vol[i]
+    @classmethod
+    def calculate_sl(cls, close, vol, sl_vol_mul=10):
+        return close - sl_vol_mul * vol
+
+    def open_order(self, i: int):
+        sl = self.calculate_sl(self.close[i], self.vol[i])
         self.order = BuyOrder(i, self.close[i], sl)
 
     def close_order(self, idx: int, close: float):
@@ -71,15 +75,6 @@ class Account:
         self.pnl += self.order.pnl
         self.closed_orders.append(self.order)
         self.order = None
-
-    def update_trailing_stop(self, i: int):
-        if not np.isnan(self.vol[i]):
-            new_stop = self.close[i] - self.SL_VOL_MUL * self.vol[i]
-            self.order.sl = max(self.order.sl, new_stop)
-
-    def exit_if_hit_stop(self, idx: int):
-        if self.close[idx] <= self.order.sl:
-            self.close_order(idx, self.order.sl)
 
 
 class BacktestResult:
@@ -96,13 +91,12 @@ class BacktestResult:
         exit = [o.exit_idx for o in self.acc.closed_orders]
 
         plt.figure(figsize=(14, 6))
+
         plt.plot(close, label="Close Price", linewidth=1)
         if entry:
-            plt.scatter(entry, close[np.array(entry)],
-                        marker="^", color="green", s=80, label="Entry")
+            plt.scatter(entry, close[np.array(entry)], marker="^", color="green", s=80, label="Entry")
         if exit:
-            plt.scatter(exit, close[np.array(exit)],
-                        marker="v", color="red", s=80, label="Exit")
+            plt.scatter(exit, close[np.array(exit)], marker="v", color="red", s=80, label="Exit")
 
         plt.title(f"Backtest Visualization {self.symbol.upper()}")
         plt.legend()
@@ -125,13 +119,19 @@ def backtest(data: ForexData) -> BacktestResult:
                 and not np.isnan(acc.ma_short[i])
                 and not np.isnan(acc.ma_long[i])
                 and acc.ma_short[i] > acc.ma_long[i]
-            ):  # Enter long
-                acc.enter_long(i)
-        else:  # Manage open position with trailing stop
-            acc.update_trailing_stop(i)
-            acc.exit_if_hit_stop(i)
+            ):
+                acc.open_order(i)
+        else:
+            if acc.low[i] <= acc.order.sl: # check hit stop loss (use lowest price, not close, heavy wick, liquidity sweep can delete order)
+                acc.close_order(i, acc.order.sl)
+            if not acc.order:  # if order is closed, continue
+                continue
 
-    if acc.order:  # Close any open position at final price
+            if not np.isnan(acc.vol[i]):  # adjust stop loss if still have order
+                new_sl = acc.calculate_sl(acc.close[i], acc.vol[i])
+                acc.order.sl = max(acc.order.sl, new_sl)
+
+    if acc.order:
         acc.close_order(len(acc.close) - 1, acc.close[-1])
 
     res = BacktestResult(data, acc)
