@@ -9,8 +9,8 @@ import matplotlib.pyplot as plt
 from utils import load_parquet, drop_weekend
 from features import get_features
 
-GATE_MA_SHORT_PERIOD = 20
-GATE_MA_LONG_PERIOD = 50
+GATE_MA_SHORT_PERIOD = 50
+GATE_MA_LONG_PERIOD = 200
 
 ATR_PERIOD = 20
 SL_VOL_MUL = 12
@@ -39,8 +39,8 @@ class SimulationData:
         self.close = self._ohlc["close"].to_numpy()
 
         self.vol = self._ohlc.ta.atr(ATR_PERIOD).to_numpy()
-        self.ma_short = ta.linreg(self._ohlc["close"], GATE_MA_SHORT_PERIOD).to_numpy()
-        self.ma_long = ta.kama(self._ohlc["close"], GATE_MA_LONG_PERIOD).to_numpy()
+        self.ma_short = ta.ema(self._ohlc["close"], GATE_MA_SHORT_PERIOD).to_numpy()
+        self.ma_long = ta.ema(self._ohlc["close"], GATE_MA_LONG_PERIOD).to_numpy()
 
 
 class BuyOrder:
@@ -64,18 +64,18 @@ class BuyOrder:
         self.close(idx, self.sl)
 
 
+def calculate_sl(close, vol):
+    return close - SL_VOL_MUL * vol
+
+
 class Account:
     def __init__(self):
         self.closed_orders = []
         self.order: BuyOrder | None = None
         self.pnl = 0.0
 
-    @classmethod
-    def calculate_sl(cls, close, vol):
-        return close - SL_VOL_MUL * vol
-
     def open_order(self, idx: int, close: float, vol: float):
-        sl = self.calculate_sl(close, vol)
+        sl = calculate_sl(close, vol)
         self.order = BuyOrder(idx, close, sl)
 
     def close_order(self, idx: int, close: float):
@@ -103,6 +103,9 @@ class BacktestResult:
         plt.figure(figsize=(14, 6))
 
         plt.plot(close, label="Close Price", linewidth=1)
+        plt.plot(self.data.ma_short, label="Gate MA Short", linewidth=1)
+        plt.plot(self.data.ma_long, label="Gate MA Long", linewidth=1)
+
         if entry:
             plt.scatter(entry, close[np.array(entry)], marker="^", color="green", s=80, label="Entry")
         if exit:
@@ -114,40 +117,47 @@ class BacktestResult:
         plt.tight_layout()
         plt.show()
 
+# TODO: two separate model
+# 1. Tactical (low level, low TF)
+# 2. Strategic (high level, high TF)
 
 def backtest(forex_data: ForexData) -> BacktestResult:
     acc = Account()
     data = SimulationData(forex_data)
-    clf = joblib.load("models/logreg_v1.pkl")
 
-    X = get_features(data.forex_data.ohlc)
-    pred = clf.predict(X)
-    pred = pd.Series(pred, index=X.index)
-    data._ohlc["pred"] = pred
+    X = get_features(data._ohlc)
+    clf = joblib.load("models/logreg_v1.pkl")
+    pred_raw = clf.predict(X)
+    pred_s = pd.Series(pred_raw, index=X.index)
+
+    pred_full = pd.Series(np.nan, index=data._ohlc.index, dtype="int8")
+    pred_full.loc[pred_s.index] = pred_s.astype("int8")
+
+    data._ohlc["pred"] = pred_full
 
     for i in range(len(forex_data.ohlc)):
         pred = data._ohlc["pred"].iloc[i]
-        if np.isnan(pred):
-            continue
+
         # if no order, wait for signal
         if not acc.order:
-            if (pred == 1
+            if (not np.isnan(pred)
+                and pred == 1
                 and not np.isnan(data.vol[i])
                 and not np.isnan(data.ma_short[i])
                 and not np.isnan(data.ma_long[i])
-                and data.ma_short[i] > data.ma_long[i]  
+                and data.ma_short[i] > data.ma_long[i]
             ):
                 acc.open_order(i, data.close[i], data.vol[i])
         else:
             # check if stop loss
-            if data.low[i] <= acc.order.sl:
+            if data.low[i] <= acc.order.sl:  # if low hooked sl, close
                 acc.close_order(i, acc.order.sl)
             if not acc.order:
                 continue
 
             # adjust stop loss if still have order
             if not np.isnan(data.vol[i]):
-                new_sl = acc.calculate_sl(data.high[i], data.vol[i])
+                new_sl = calculate_sl(data.high[i], data.vol[i])  # update with high
                 acc.order.sl = max(acc.order.sl, new_sl)
 
     if acc.order:
