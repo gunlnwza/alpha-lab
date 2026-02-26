@@ -85,11 +85,13 @@ class Simulation:
         data = self.bot.precompute_data(prices)
 
         for i in range(len(data.prices)):
-            self.acc.update_order(i, prices.high[i], prices.low[i], prices.close[i])
-            self.bot.act(i, data, self.acc)
-            self.acc.update_money(i, prices.close[i])
+            if i == len(data.prices) - 1:  # latest bar, no meaning asking bot what to do
+                if self.acc.have_order():
+                    self.acc.close_order(i, prices.close[i])
+            else:
+                self.acc.check_stop_loss(i, prices.high[i], prices.low[i], prices.close[i])
+                self.bot.act(i, data, self.acc)
 
-        if self.acc.have_order():
-            self.acc.close_order(len(prices) - 1, prices.close[len(prices) - 1])
+            self.acc.update_money(i, prices.close[i])
 
         self.result = SimulationResult(prices, self.acc, self.bot)
