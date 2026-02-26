@@ -1,4 +1,7 @@
+import sys
 import logging
+import argparse
+
 from alpha_lab.backtest.simulation import Simulation
 from alpha_lab.backtest.account import Account
 from alpha_lab.backtest.bot import BacktestBot
@@ -13,7 +16,14 @@ logging.basicConfig(
 
 
 def main():
-    forex_data = ForexData("twelve_data", "XAUUSD", "5min")
+    parser = argparse.ArgumentParser()
+    parser.add_argument("symbol")
+    args = parser.parse_args()
+
+    try:
+        forex_data = ForexData("twelve_data", args.symbol, "5min")
+    except RuntimeError as e:
+        sys.exit(e)
 
     acc = Account()
     bot = BacktestBot()

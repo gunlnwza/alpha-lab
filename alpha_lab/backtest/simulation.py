@@ -27,17 +27,15 @@ class SimulationResult:
         profit_factor = f"{pos_pnl / neg_pnl:.2f}" if neg_pnl != 0 else "inf"
 
         # Drawdown
-        balance = pd.Series(self.acc.balance, index=self.forex_data.ohlcv.index)
         equity = pd.Series(self.acc.equity, index=self.forex_data.ohlcv.index)
+        balance = pd.Series(self.acc.balance, index=self.forex_data.ohlcv.index)
         max_equity_drawdown = (equity.cummax() - equity).max()
         max_balance_drawdown = (balance.cummax() - balance).max()
 
         print(f"{self.forex_data}")
-        print(f"Win | Loss | Trades                         : {win:.0f} | {loss:.0f} | {trades:.0f}")
-        print(f"Win Rate                                    : {win_rate}")
-        print(f"+PnL | -PnL | Total PnL                     : {pos_pnl:.2f} | {-neg_pnl:.2f} | {pos_pnl - neg_pnl:.2f}")
-        print(f"Profit Factor                               : {profit_factor}")
-        print(f"Max Drawdown (balance diff) | (equity diff) : {-max_balance_drawdown:.2f} | {-max_equity_drawdown:.2f}")
+        print(f"Win | Loss | Trades | Win Rate              : {win:.0f} | {loss:.0f} | {trades:.0f} | {win_rate}")
+        print(f"+PnL | -PnL | Total PnL | Profit Factor     : {pos_pnl:.2f} | {-neg_pnl:.2f} | {pos_pnl - neg_pnl:.2f} | {profit_factor}")
+        print(f"Max Drawdown (equity diff) | (balance diff) : {-max_equity_drawdown:.2f} | {-max_balance_drawdown:.2f}")
         print()
 
     def visualize(self):

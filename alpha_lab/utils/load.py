@@ -30,7 +30,10 @@ class ForexData:
         self.symbol = symbol.upper()
         self.tf = tf
 
-        ohlcv_raw = load_parquet(source, symbol, tf)
+        try:
+            ohlcv_raw = load_parquet(source, symbol, tf)
+        except FileNotFoundError:
+            raise RuntimeError("Cannot load forex data")
         self.ohlcv = drop_weekend(ohlcv_raw)  # remove weekend, like most charting software
 
         self.open = self.ohlcv.open.to_numpy()

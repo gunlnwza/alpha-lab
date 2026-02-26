@@ -57,7 +57,7 @@ class BacktestBot:
         - Vectorized for most things, hopefully with no lookahead bias
         """
         data = PrecomputedData(forex_data)
-        data.signals = self._precompute_signals(forex_data)  # Signals
+        # data.signals = self._precompute_signals(forex_data)  # Signals
         data.misc["vol"] = forex_data.ohlcv.ta.atr(ATR_PERIOD).to_numpy()  # Additional data, for SL
         return data
     
