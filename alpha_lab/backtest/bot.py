@@ -16,7 +16,7 @@ logger = logging.getLogger(__name__)
 GATE_MA_SHORT_PERIOD = 50
 GATE_MA_LONG_PERIOD = 200
 ATR_PERIOD = 10
-SL_VOL_MUL = 20
+SL_VOL_MUL = 10
 
 
 class PrecomputedData:
@@ -58,7 +58,7 @@ class BacktestBot:
         """
         data = PrecomputedData(forex_data)
 
-        # data.signals = self._precompute_signals(forex_data)  # Signals
+        data.signals = self._precompute_signals(forex_data)  # Signals
 
         # Additional data
         data.misc["vol"] = forex_data.ohlcv.ta.atr(ATR_PERIOD).to_numpy()  # for sl
@@ -67,8 +67,11 @@ class BacktestBot:
 
         return data
     
+    def calculate_sl(self, close, vol):
+        return close - SL_VOL_MUL * vol
+
     def update_trailing_stop(self, position, close: float, vol: float):
-        new_sl = close - SL_VOL_MUL * vol
+        new_sl = self.calculate_sl(close, vol)
         if new_sl > position.sl:
             position.set_sl(close, new_sl)
 
@@ -83,23 +86,23 @@ class BacktestBot:
 
         uptrend = (not np.isnan(ma_long)) and ma_short > ma_long
 
-        # if position:
-            # self.update_trailing_stop(position, close, vol)
-        # else:
-        #     if data.signals[idx] and not np.isnan(vol):
-        #         sl = self.calculate_sl(close, vol)
-        #         acc.open_position(idx, close, sl)
-
-        if limit:
-            if self.ttl > 0:
-                self.ttl -= 1
-            if self.ttl == 0:
-                acc.close_limit(idx)
-        elif position:
+        if position:
             self.update_trailing_stop(position, close, vol)
-            pass
         else:
-            if uptrend:
-                if not np.isnan(vol):
-                    acc.open_limit(idx, close - 2 * vol, close - 4 * vol)
-                    self.ttl = 30
+            if data.signals[idx] and not np.isnan(vol):
+                sl = self.calculate_sl(close, vol)
+                acc.open_position(idx, close, sl)
+
+        # if limit:
+        #     if self.ttl > 0:
+        #         self.ttl -= 1
+        #     if self.ttl == 0:
+        #         acc.close_limit(idx)
+        # elif position:
+        #     self.update_trailing_stop(position, close, vol)
+        #     pass
+        # else:
+        #     if uptrend:
+        #         if not np.isnan(vol):
+        #             acc.open_limit(idx, close - 2 * vol, close - 4 * vol)
+        #             self.ttl = 30

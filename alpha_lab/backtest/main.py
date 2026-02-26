@@ -17,11 +17,13 @@ logging.basicConfig(
 
 def main():
     parser = argparse.ArgumentParser()
+    parser.add_argument("source")
     parser.add_argument("symbol")
+    parser.add_argument("tf")
     args = parser.parse_args()
 
     try:
-        forex_data = ForexData("twelve_data", args.symbol, "5min")
+        forex_data = ForexData(args.source, args.symbol, args.tf)
     except RuntimeError as e:
         sys.exit(e)
 
