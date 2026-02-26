@@ -1,12 +1,13 @@
 import numpy as np
 import logging
 
-from utils import ForexData
-
-from .account import Account
-from .data import SimulationData
-from .result import SimulationResult
-from model_entrypoint import get_signals
+from alpha_lab.utils import ForexData
+from alpha_lab.backtest.model_entrypoint import get_signals
+from alpha_lab.backtest.simulation import (
+    Account,
+    SimulationData,
+    SimulationResult,
+)
 
 logger = logging.getLogger(__file__)
 

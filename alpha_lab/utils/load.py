@@ -1,9 +1,10 @@
 from pathlib import Path
 import pandas as pd
 
-from .preprocess import drop_weekend, inverse_ohlcv
+from alpha_lab.utils.preprocess import drop_weekend
 
-_DATA_DIR = Path(__file__).parents[1] / ".finloader_data"
+
+_DATA_DIR = Path(__file__).parents[2] / ".finloader_data"
 
 
 def _get_path(source: str, symbol: str, tf: str, extension: str):

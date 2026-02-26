@@ -1,4 +1,4 @@
-from model_entrypoint import SL_VOL_MUL
+from alpha_lab.backtest.model_entrypoint import SL_VOL_MUL
 
 
 class BuyOrder:

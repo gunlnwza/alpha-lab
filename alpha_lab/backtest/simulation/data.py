@@ -1,7 +1,7 @@
 import pandas_ta as ta
 
-from model_entrypoint import ATR_PERIOD, GATE_MA_SHORT_PERIOD, GATE_MA_LONG_PERIOD
-from utils import ForexData
+from alpha_lab.backtest.model_entrypoint  import ATR_PERIOD, GATE_MA_SHORT_PERIOD, GATE_MA_LONG_PERIOD
+from alpha_lab.utils import ForexData
 
 
 class SimulationData:

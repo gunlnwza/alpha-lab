@@ -1,11 +1,13 @@
-import joblib
-import pandas as pd
+from pathlib import Path
 
-from models.features import get_features
+import pandas as pd
+import joblib
+
+from alpha_lab.models.features import get_features
 
 from typing import TYPE_CHECKING
 if TYPE_CHECKING:
-    from simulation import SimulationData
+    from alpha_lab.backtest.simulation import SimulationData
 
 # TODO: different configs for different assets
 
@@ -26,7 +28,7 @@ def get_signals(data: "SimulationData"):
     # Two separate models
     # 1. Tactical (low level, low TF)
     X = get_features(data._ohlcv)
-    low_tf_clf = joblib.load("models/artifacts/logreg_v1.pkl")
+    low_tf_clf = joblib.load(Path("alpha_lab", "models", "artifacts", "logreg_v1.pkl"))
     low_tf_raw = pd.Series(low_tf_clf.predict(X), index=X.index)
 
     # Align tactical signal to full OHLC index

@@ -1,18 +1,16 @@
-from pathlib import Path
-import joblib
 import sys
+from pathlib import Path
 
 import pandas as pd
 import pandas_ta as ta
-
 import matplotlib.pyplot as plt
-
+import joblib
 from sklearn.model_selection import train_test_split
 from sklearn.linear_model import LogisticRegression
 from sklearn.metrics import confusion_matrix, classification_report
 
-from utils import load_parquet, drop_weekend, divide_timeseries, triple_barrier_labels
-from train.features import get_features, get_features_labels
+from alpha_lab.utils import load_parquet, drop_weekend, divide_timeseries, triple_barrier_labels
+from alpha_lab.models.features import get_features, get_features_labels
 
 
 def plot_buy_labels(df: pd.DataFrame, signals: pd.Series):
@@ -106,7 +104,7 @@ def main():
     visual_backtest(week_chunks[1], lr_clf, "Logistic Regression (Test | Week 1)")
     visual_backtest(week_chunks[2], lr_clf, "Logistic Regression (Test | Week 2)")
 
-    path = Path("models", "logreg_v1.pkl")
+    path = Path("alpha_lab", "models", "artifacts", "logreg_v1.pkl")
     path.parent.mkdir(exist_ok=True)
     joblib.dump(lr_clf, path)
     print(f"Model saved to {path}!")

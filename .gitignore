@@ -8,11 +8,10 @@
 data
 *_data
 backup_*
-
-models/artifacts
-
-*.parquet
 *.csv
+*.parquet
+
+*/models/artifacts
 
 # Logs
 logs

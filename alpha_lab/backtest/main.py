@@ -1,6 +1,6 @@
 import logging
-from utils import ForexData
-from simulation import Simulation
+from alpha_lab.utils import ForexData
+from alpha_lab.backtest.simulation import Simulation
 
 logging.basicConfig(
     filename="app.log",
