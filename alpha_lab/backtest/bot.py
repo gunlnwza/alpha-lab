@@ -30,6 +30,8 @@ class BacktestBot:
     def __init__(self):
         self.pred_full = None
 
+        self.ttl = 0
+
     def _precompute_signals(self, forex_data: ForexData):
         # Two separate models
         # 1. Tactical (low level, low TF)
@@ -58,10 +60,11 @@ class BacktestBot:
         data.signals = self._precompute_signals(forex_data)  # Signals
         data.misc["vol"] = forex_data.ohlcv.ta.atr(ATR_PERIOD).to_numpy()  # Additional data, for SL
         return data
-
-    def calculate_sl(self, close, vol):
-        sl = close - SL_VOL_MUL * vol
-        return sl
+    
+    def update_trailing_stop(self, position, close: float, vol: float):
+        new_sl = close - SL_VOL_MUL * vol
+        if new_sl > position.sl:
+            position.set_sl(close, new_sl)
 
     def act(self, idx: int, data: PrecomputedData, acc: Account):
         limit = acc.get_limit()
@@ -70,16 +73,21 @@ class BacktestBot:
         vol = data.misc["vol"][idx]
 
         # if acc.have_position():
-        #     new_sl = self.calculate_sl(close, vol)
-        #     if new_sl > position.sl:
-        #         position.set_sl(close, new_sl)
+            # self.update_trailing_stop(position, close, vol)
         # else:
         #     if data.signals[idx] and not np.isnan(vol):
         #         sl = self.calculate_sl(close, vol)
         #         acc.open_position(idx, close, sl)
 
-        if not limit and not position:
+        if limit:
+            if self.ttl > 0:
+                self.ttl -= 1
+            if self.ttl == 0:
+                acc.close_limit(idx)
+        elif position:
+            self.update_trailing_stop(position, close, vol)
+            pass
+        else:
             if not np.isnan(vol):
-                acc.open_limit(idx, close - 0.1 * vol, close - 0.2 * vol)
-                limit = acc.get_limit()
-                print(limit)
+                acc.open_limit(idx, close - 2 * vol, close - 4 * vol)
+                self.ttl = 10  # limit is valid for only 10 bars

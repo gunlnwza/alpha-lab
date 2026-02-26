@@ -24,7 +24,7 @@ class SimulationResult:
 
         # Rate
         win_rate = f"{win / trades:.2f}" if trades > 0 else "inf"
-        profit_per_loss = f"{pos_pnl / neg_pnl:.2f}" if neg_pnl != 0 else "inf"
+        profit_factor = f"{pos_pnl / neg_pnl:.2f}" if neg_pnl != 0 else "inf"
 
         # Drawdown
         balance = pd.Series(self.acc.balance, index=self.forex_data.ohlcv.index)
@@ -36,7 +36,7 @@ class SimulationResult:
         print(f"Win | Loss | Trades                         : {win:.0f} | {loss:.0f} | {trades:.0f}")
         print(f"Win Rate                                    : {win_rate}")
         print(f"+PnL | -PnL | Total PnL                     : {pos_pnl:.2f} | {-neg_pnl:.2f} | {pos_pnl - neg_pnl:.2f}")
-        print(f"Profit per Loss                             : {profit_per_loss}")
+        print(f"Profit Factor                               : {profit_factor}")
         print(f"Max Drawdown (balance diff) | (equity diff) : {-max_balance_drawdown:.2f} | {-max_equity_drawdown:.2f}")
         print()
 
@@ -94,11 +94,13 @@ class Simulation:
             else:
                 if acc.have_limit():
                     assert not acc.have_position()
-                    acc._check_limit(i, prices.high[i], prices.low[i], prices.close[i])
+                    acc._check_limit(i, prices.high[i], prices.low[i])
                 elif acc.have_position():
                     assert not acc.have_limit()
-                    acc._check_stop_loss(i, prices.high[i], prices.low[i], prices.close[i])
-                # print(acc.get_limit(), acc.get_position())
+                    acc._check_sl(i, prices.high[i], prices.low[i])
+                    if acc.have_position():
+                        acc._check_tp(i, prices.high[i], prices.low[i])
+
                 self.bot.act(i, data, self.acc)
 
             self.acc._update_money(i, prices.close[i])
