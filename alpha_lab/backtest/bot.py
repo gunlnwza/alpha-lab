@@ -57,8 +57,15 @@ class BacktestBot:
         - Vectorized for most things, hopefully with no lookahead bias
         """
         data = PrecomputedData(forex_data)
+
         # data.signals = self._precompute_signals(forex_data)  # Signals
-        data.misc["vol"] = forex_data.ohlcv.ta.atr(ATR_PERIOD).to_numpy()  # Additional data, for SL
+
+        # Additional data
+        data.misc["vol"] = forex_data.ohlcv.ta.atr(ATR_PERIOD).to_numpy()  # for sl
+        data.misc["ma_short"] = forex_data.ohlcv.ta.sma(100).to_numpy()
+        data.misc["ma_long"] = forex_data.ohlcv.ta.sma(200).to_numpy()
+        print(data.misc)
+
         return data
     
     def update_trailing_stop(self, position, close: float, vol: float):
@@ -67,12 +74,17 @@ class BacktestBot:
             position.set_sl(close, new_sl)
 
     def act(self, idx: int, data: PrecomputedData, acc: Account):
-        limit = acc.get_limit()
-        position = acc.get_position()
         close = data.prices.close[idx]
+        ma_short = data.misc["ma_short"][idx]
+        ma_long = data.misc["ma_long"][idx]
         vol = data.misc["vol"][idx]
 
-        # if acc.have_position():
+        limit = acc.get_limit()
+        position = acc.get_position()
+
+        uptrend = (not np.isnan(ma_long)) and ma_short > ma_long
+
+        # if position:
             # self.update_trailing_stop(position, close, vol)
         # else:
         #     if data.signals[idx] and not np.isnan(vol):
@@ -88,6 +100,7 @@ class BacktestBot:
             self.update_trailing_stop(position, close, vol)
             pass
         else:
-            if not np.isnan(vol):
-                acc.open_limit(idx, close - 2 * vol, close - 4 * vol)
-                self.ttl = 10  # limit is valid for only 10 bars
+            if uptrend:
+                if not np.isnan(vol):
+                    acc.open_limit(idx, close - vol, close - 4 * vol)
+                    self.ttl = 30
