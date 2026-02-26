@@ -42,8 +42,10 @@ class SimulationResult:
         fig, axes = plt.subplots(2, 1, height_ratios=[2, 1], sharex=True, figsize=(12, 6))
 
         # axes[0]
-        axes[0].set_title(f"Backtest Visualization | {self.forex_data}")
+        axes[0].set_title(f"Simulation Result | {self.forex_data}")
+        axes[0].set_ylabel("Price")
         axes[0].grid(alpha=0.3)
+
         axes[0].plot(self.forex_data.ohlcv.close, label="Close Price", linewidth=1)
 
         index = self.forex_data.ohlcv.index
@@ -57,7 +59,11 @@ class SimulationResult:
         # axes[1]
         balance = pd.Series(self.acc.balance, index=index)
         equity = pd.Series(self.acc.equity, index=index)
+
+        axes[1].set_xlabel("Time")
+        axes[1].set_ylabel("Price Diff")
         axes[1].grid(alpha=0.3)
+
         axes[1].plot(balance, label="Balance")
         axes[1].plot(equity, label="Equity")
         axes[1].legend()
