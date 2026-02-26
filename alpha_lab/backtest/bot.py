@@ -64,7 +64,6 @@ class BacktestBot:
         data.misc["vol"] = forex_data.ohlcv.ta.atr(ATR_PERIOD).to_numpy()  # for sl
         data.misc["ma_short"] = forex_data.ohlcv.ta.sma(100).to_numpy()
         data.misc["ma_long"] = forex_data.ohlcv.ta.sma(200).to_numpy()
-        print(data.misc)
 
         return data
     
@@ -102,5 +101,5 @@ class BacktestBot:
         else:
             if uptrend:
                 if not np.isnan(vol):
-                    acc.open_limit(idx, close - vol, close - 4 * vol)
+                    acc.open_limit(idx, close - 2 * vol, close - 4 * vol)
                     self.ttl = 30

@@ -17,30 +17,33 @@ class SimulationResult:
         self.index = self.forex_data.ohlcv.index
         self.closed_positions = self.acc.order_manager.closed_positions
 
-        tens = pow(10, self.forex_data.decimal_places)
-        self.balance_points = pd.Series(self.acc.balance, index=self.index) * tens
-        self.equity_points = pd.Series(self.acc.equity, index=self.index) * tens
+        self.tens = pow(10, self.forex_data.decimal_places)
+        self.balance_points = pd.Series(self.acc.balance, index=self.index) * self.tens
+        self.equity_points = pd.Series(self.acc.equity, index=self.index) * self.tens
 
     def report(self):
         # Trades
         win = sum(1 for o in self.closed_positions if o.pnl > 0)
         loss = sum(1 for o in self.closed_positions if o.pnl < 0)
         trades = win + loss
-        pos_pnl = sum(o.pnl for o in self.closed_positions if o.pnl > 0)
-        neg_pnl = sum(-o.pnl for o in self.closed_positions if o.pnl < 0)
-
-        # Rate
         win_rate = f"{win / trades:.2f}" if trades > 0 else "inf"
-        profit_factor = f"{pos_pnl / neg_pnl:.2f}" if neg_pnl != 0 else "inf"
+
+        # PnL
+        pos_point = sum(p.pnl for p in self.closed_positions if p.pnl > 0) * self.tens
+        neg_point = sum(-p.pnl for p in self.closed_positions if p.pnl < 0) * self.tens
+        profit_factor = f"{pos_point / neg_point:.2f}" if neg_point != 0 else "inf"
+        avg_pos_point = f"{pos_point / win:.2f}" if win > 0 else "inf"
+        avg_neg_point = f"{-neg_point / loss:.2f}" if loss > 0 else "inf"
 
         # Drawdown
         max_equity_drawdown = (self.equity_points.cummax() - self.equity_points).max()
         max_balance_drawdown = (self.balance_points.cummax() - self.balance_points).max()
 
         print(f"{self.forex_data}")
-        print(f"Win | Loss | Trades | Win Rate             : {win:.0f} | {loss:.0f} | {trades:.0f} | {win_rate}")
-        print(f"+PnL | -PnL | Total PnL | Profit Factor    : {pos_pnl:.2f} | {-neg_pnl:.2f} | {pos_pnl - neg_pnl:.2f} | {profit_factor}")
-        print(f"Max Equity Drawdown | Max Balance Drawdown : {-max_equity_drawdown:.2f} | {-max_balance_drawdown:.2f}")
+        print(f"Win | Loss | Trades | Win Rate                : {win:.0f} | {loss:.0f} | {trades:.0f} | {win_rate}")
+        print(f"+Point | -Point | Total Point | Profit Factor : {pos_point:.0f} | {-neg_point:.0f} | {pos_point - neg_point:.0f} | {profit_factor}")
+        print(f"Average +Point | Average -Point               : {avg_pos_point} | {avg_neg_point}")
+        print(f"Max Equity Drawdown | Max Balance Drawdown    : {-max_equity_drawdown:.0f} | {-max_balance_drawdown:.0f}")
         print()
 
     def visualize(self):
