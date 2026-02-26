@@ -7,7 +7,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 from utils import load_parquet, drop_weekend, inverse_ohlcv
-from train.features import get_features
+from models.features import get_features
 
 GATE_MA_SHORT_PERIOD = 50
 GATE_MA_LONG_PERIOD = 200

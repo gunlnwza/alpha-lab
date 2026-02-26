@@ -26,9 +26,10 @@ imgs
 
 # Python
 venv
+.venv
 __pycache__
 *.pkl
 
 # .ipynb
-notebooks
+.notebooks
 2026-*
