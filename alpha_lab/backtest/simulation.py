@@ -85,13 +85,9 @@ class Simulation:
         data = self.bot.precompute_data(prices)
 
         for i in range(len(data.prices)):
-            order = self.acc.order_manager.order
-            if order and prices.low[i] < order.sl:
-                self.acc.close_order(i, order.sl)
-
+            self.acc.update_order(i, prices.high[i], prices.low[i], prices.close[i])
             self.bot.act(i, data, self.acc)
-
-            self.acc.update_money(prices.close[i])
+            self.acc.update_money(i, prices.close[i])
 
         if self.acc.have_order():
             self.acc.close_order(len(prices) - 1, prices.close[len(prices) - 1])
