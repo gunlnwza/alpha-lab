@@ -13,7 +13,7 @@ logging.basicConfig(
 
 
 def main():
-    forex_data = ForexData("twelve_data", "XAUUSD", "5min")
+    forex_data = ForexData("twelve_data", "EURUSD", "5min")
 
     acc = Account()
     bot = BacktestBot()

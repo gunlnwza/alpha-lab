@@ -64,14 +64,22 @@ class BacktestBot:
         return sl
 
     def act(self, idx: int, data: PrecomputedData, acc: Account):
-        order = acc.get_order()
+        limit = acc.get_limit()
+        position = acc.get_position()
         close = data.prices.close[idx]
         vol = data.misc["vol"][idx]
 
-        if order:
-            new_sl = self.calculate_sl(close, vol)
-            order.sl = max(order.sl, new_sl)
-        else:
-            if data.signals[idx] and not np.isnan(vol):
-                sl = self.calculate_sl(close, vol)
-                acc.open_order(idx, close, sl)
+        # if acc.have_position():
+        #     new_sl = self.calculate_sl(close, vol)
+        #     if new_sl > position.sl:
+        #         position.set_sl(close, new_sl)
+        # else:
+        #     if data.signals[idx] and not np.isnan(vol):
+        #         sl = self.calculate_sl(close, vol)
+        #         acc.open_position(idx, close, sl)
+
+        if not limit and not position:
+            if not np.isnan(vol):
+                acc.open_limit(idx, close - 0.1 * vol, close - 0.2 * vol)
+                limit = acc.get_limit()
+                print(limit)
