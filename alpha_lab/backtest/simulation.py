@@ -1,11 +1,21 @@
 import pandas as pd
 
+from rich.console import Console
+from rich.table import Table
+from rich import box
+
 import matplotlib.pyplot as plt
 import matplotlib.ticker as mticker
 
 from alpha_lab.utils import ForexData
 from alpha_lab.backtest.bot import BacktestBot
 from alpha_lab.backtest.account import Account
+
+from rich.console import Console
+from rich.table import Table
+from rich import box
+
+console = Console()
 
 
 class SimulationResult:
@@ -31,20 +41,37 @@ class SimulationResult:
         # PnL
         pos_point = sum(p.pnl for p in self.closed_positions if p.pnl > 0) * self.tens
         neg_point = sum(-p.pnl for p in self.closed_positions if p.pnl < 0) * self.tens
+        total_point = pos_point - neg_point
+
+        avg_pos_point = f"{pos_point / win:.0f}" if win > 0 else "inf"
+        avg_neg_point = f"{-neg_point / loss:.0f}" if loss > 0 else "inf"
         profit_factor = f"{pos_point / neg_point:.2f}" if neg_point != 0 else "inf"
-        avg_pos_point = f"{pos_point / win:.2f}" if win > 0 else "inf"
-        avg_neg_point = f"{-neg_point / loss:.2f}" if loss > 0 else "inf"
 
         # Drawdown
         max_equity_drawdown = (self.equity_points.cummax() - self.equity_points).max()
         max_balance_drawdown = (self.balance_points.cummax() - self.balance_points).max()
 
-        print(f"{self.forex_data}")
-        print(f"Win | Loss | Trades | Win Rate                : {win:.0f} | {loss:.0f} | {trades:.0f} | {win_rate}")
-        print(f"+Point | -Point | Total Point | Profit Factor : {pos_point:.0f} | {-neg_point:.0f} | {pos_point - neg_point:.0f} | {profit_factor}")
-        print(f"Average +Point | Average -Point               : {avg_pos_point} | {avg_neg_point}")
-        print(f"Max Equity Drawdown | Max Balance Drawdown    : {-max_equity_drawdown:.0f} | {-max_balance_drawdown:.0f}")
-        print()
+        # Print
+        table = Table(title=f"{self.forex_data}", box=box.SIMPLE_HEAVY)
+
+        table.add_column("Metric", justify="left"); table.add_column("Value", justify="right")
+        table.add_row("Win", f"{win:.0f}")
+        table.add_row("Loss", f"{loss:.0f}")
+        table.add_row("Trades", f"{trades:.0f}")
+        table.add_row("Win Rate", f"{win_rate}")
+        table.add_row("", "")
+        table.add_row("+Point", f"{pos_point:.0f}")
+        table.add_row("-Point", f"{-neg_point:.0f}")
+        table.add_row("Total Point", f"{total_point:.0f}")
+        table.add_row("Profit Factor", f"{profit_factor}")
+        table.add_row("", "")
+        table.add_row("Average +Point", f"{avg_pos_point}")
+        table.add_row("Average -Point", f"{avg_neg_point}")
+        table.add_row("", "")
+        table.add_row("Max Balance Drawdown", f"{-max_balance_drawdown:.0f}")
+        table.add_row("Max Equity Drawdown", f"{-max_equity_drawdown:.0f}")
+
+        console.print(table)
 
     def visualize(self):
         fig, axes = plt.subplots(2, 1, height_ratios=[2, 1], sharex=True, figsize=(12, 6))
