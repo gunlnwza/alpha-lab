@@ -7,7 +7,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 from utils import load_parquet, drop_weekend, inverse_ohlcv
-from features import get_features
+from train.features import get_features
 
 GATE_MA_SHORT_PERIOD = 50
 GATE_MA_LONG_PERIOD = 200
@@ -24,7 +24,7 @@ class ForexData:
         self.tf = tf
 
         self.ohlcv = load_parquet(source, symbol, tf)
-        # self.ohlcv = drop_weekend(self.ohlcv)
+        self.ohlcv = drop_weekend(self.ohlcv)
 
         self.inv_ohlcv = inverse_ohlcv(self.ohlcv)
 
@@ -38,8 +38,7 @@ class ForexData:
 class SimulationData:
     def __init__(self, forex_data: ForexData):
         self.forex_data = forex_data
-        # self._ohlcv = forex_data.ohlcv
-        self._ohlcv = forex_data.inv_ohlcv
+        self._ohlcv = forex_data.ohlcv
 
         self.open = self._ohlcv["open"].to_numpy()
         self.high = self._ohlcv["high"].to_numpy()
@@ -99,7 +98,22 @@ class BacktestResult:
         self.acc = acc
 
     def report(self):
-        print(f"{self.data.forex_data} | Final PnL: {self.acc.pnl:.4f}")
+        win = sum(1 for o in self.acc.closed_orders if o.pnl > 0)
+        loss = sum(1 for o in self.acc.closed_orders if o.pnl < 0)
+        trades = win + loss
+        pos_pnl = sum(o.pnl for o in self.acc.closed_orders if o.pnl > 0)
+        neg_pnl = sum(-o.pnl for o in self.acc.closed_orders if o.pnl < 0)
+
+        win_rate = win / trades if trades > 0 else "inf"
+        profit_per_loss = pos_pnl / neg_pnl if neg_pnl != 0 else 'inf'
+
+        print("-" * 40)
+        print(f"{self.data.forex_data}")
+        print(f"    Win | Loss | Trades : {win:.0f} | {loss:.0f} | {trades:.0f}")
+        print(f"               Win Rate : {win_rate:.2f}")
+        print(f"+PnL | -PnL | Total PnL : {pos_pnl:.2f} | {-neg_pnl:.2f} | {pos_pnl - neg_pnl:.2f}")
+        print(f"        Profit per Loss : {profit_per_loss:.2f}")
+        print("-" * 40)
 
     def visualize(self):
         plt.figure(figsize=(14, 6))
@@ -180,16 +194,16 @@ def backtest(forex_data: ForexData) -> BacktestResult:
 
 def main():
     # symbols = ["XAUUSD", "USDJPY", "EURUSD", "AUDUSD"]
-    # symbols = ["XAUUSD"]
-    symbols = ["USDJPY"]
+    symbols = ["XAUUSD"]
+    # symbols = ["USDJPY"]
     # symbols = ["USDCAD"]
     # symbols = ["AUDUSD"]
     for s in symbols:
-        data = ForexData("twelve_data", s, "5min")
-
-        res = backtest(data)
-        res.report()
-        res.visualize()
+        for tf in ["1min", "5min", "15min", "1hour", "1day"]:
+            data = ForexData("twelve_data", s, tf)
+            res = backtest(data)
+            res.report()
+            res.visualize()
 
 
 if __name__ == "__main__":

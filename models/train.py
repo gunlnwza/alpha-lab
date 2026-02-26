@@ -12,7 +12,7 @@ from sklearn.linear_model import LogisticRegression
 from sklearn.metrics import confusion_matrix, classification_report
 
 from utils import load_parquet, drop_weekend, divide_timeseries, triple_barrier_labels
-from features import get_features, get_features_labels
+from train.features import get_features, get_features_labels
 
 
 def plot_buy_labels(df: pd.DataFrame, signals: pd.Series):

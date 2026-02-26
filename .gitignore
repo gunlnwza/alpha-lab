@@ -9,7 +9,7 @@ data
 *_data
 backup_*
 
-models
+models/artifacts
 
 *.parquet
 *.csv
@@ -30,4 +30,5 @@ __pycache__
 *.pkl
 
 # .ipynb
+notebooks
 2026-*
