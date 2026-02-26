@@ -10,15 +10,14 @@ class BuyOrder:
 
         self.pnl = None
 
+    def __repr__(self):
+        return f"BuyOrder({self.entry_idx}, {self.entry_price}, {self.sl})"
+
     def close(self, idx: int, close: float):
         """Close the order"""
         self.pnl = close - self.entry_price
         self.exit_idx = idx
         self.exit_price = close
-
-    def sl_hit(self, idx: int):
-        """Close the order at stop loss"""
-        self.close(idx, self.sl)
 
 
 class OrderManager:

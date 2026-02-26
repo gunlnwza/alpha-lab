@@ -44,8 +44,8 @@ class BacktestBot:
         high_tf = (ma_short > ma_long)
 
         # Final combined signal, Only valid where low_tf exists AND gate is True
-        # signals = (low_tf == 1) & (high_tf == True)
-        signals = low_tf
+        signals = (low_tf == 1) & (high_tf == True)
+        # signals = low_tf
         assert signals.index.to_list() == forex_data.ohlcv.index.to_list()
         return signals.to_numpy()
 
@@ -60,7 +60,9 @@ class BacktestBot:
         return data
 
     def calculate_sl(self, close, vol):
-        return close - SL_VOL_MUL * vol
+        sl = close - SL_VOL_MUL * vol
+        assert sl < close
+        return sl
 
     def act(self, idx: int, data: PrecomputedData, acc: Account):
         close = data.prices.close[idx]

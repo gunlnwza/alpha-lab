@@ -30,11 +30,9 @@ class ForexData:
         self.symbol = symbol.upper()
         self.tf = tf
 
-        # Pandas df
         ohlcv_raw = load_parquet(source, symbol, tf)
         self.ohlcv = drop_weekend(ohlcv_raw)  # remove weekend, like most charting software
 
-        # Numpy arrays
         self.open = self.ohlcv.open.to_numpy()
         self.high = self.ohlcv.high.to_numpy()
         self.low = self.ohlcv.low.to_numpy()

@@ -83,13 +83,13 @@ class Simulation:
         for i in range(len(data.prices)):
             order = self.acc.order_manager.order
             if order and prices.low[i] < order.sl:
-                order.sl_hit(i)
+                self.acc.order_manager.close_order(i, order.sl)
 
             self.bot.act(i, data, self.acc)
 
             self.acc.update_equity(prices.close[i])
 
         if self.acc.have_order():
-            self.acc.close_order(len(prices) - 1, prices.close[-1])
+            self.acc.close_order(len(prices) - 1, prices.close[len(prices) - 1])
 
         self.result = SimulationResult(prices, self.acc, self.bot)
