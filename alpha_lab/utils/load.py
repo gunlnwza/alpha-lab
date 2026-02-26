@@ -1,4 +1,6 @@
 from pathlib import Path
+
+import numpy as np
 import pandas as pd
 
 from alpha_lab.utils.preprocess import drop_weekend
@@ -28,8 +30,19 @@ class ForexData:
         self.symbol = symbol.upper()
         self.tf = tf
 
+        # Pandas df
         ohlcv_raw = load_parquet(source, symbol, tf)
         self.ohlcv = drop_weekend(ohlcv_raw)  # remove weekend, like most charting software
+
+        # Numpy arrays
+        self.open = self.ohlcv.open.to_numpy()
+        self.high = self.ohlcv.high.to_numpy()
+        self.low = self.ohlcv.low.to_numpy()
+        self.close = self.ohlcv.close.to_numpy()
+        self.volume = self.ohlcv.volume.to_numpy()
+
+    def __len__(self):
+        return len(self.ohlcv)
 
     def __str__(self):
         return f"{self.source}'s {self.symbol} ({self.tf})"

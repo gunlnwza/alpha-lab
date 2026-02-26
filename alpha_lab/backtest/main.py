@@ -11,10 +11,9 @@ logging.basicConfig(
 
 
 def main():
-    data = ForexData("twelve_data", "XAUUSD", "5min")
-    # data.ohlcv = data.ohlcv[:500]
+    forex_data = ForexData("twelve_data", "XAUUSD", "5min")
 
-    sim = Simulation(data)
+    sim = Simulation(forex_data)
     sim.run()
     sim.result.report()
     sim.result.visualize()
