@@ -1,5 +1,7 @@
 import pandas as pd
+
 import matplotlib.pyplot as plt
+import matplotlib.ticker as mticker
 
 from alpha_lab.utils import ForexData
 from alpha_lab.backtest.bot import BacktestBot
@@ -12,30 +14,33 @@ class SimulationResult:
         self.acc = acc
         self.bot = bot
 
-    def report(self):
-        closed_position = self.acc.order_manager.closed_positions
+        self.index = self.forex_data.ohlcv.index
+        self.closed_positions = self.acc.order_manager.closed_positions
 
+        tens = pow(10, self.forex_data.decimal_places)
+        self.balance_points = pd.Series(self.acc.balance, index=self.index) * tens
+        self.equity_points = pd.Series(self.acc.equity, index=self.index) * tens
+
+    def report(self):
         # Trades
-        win = sum(1 for o in closed_position if o.pnl > 0)
-        loss = sum(1 for o in closed_position if o.pnl < 0)
+        win = sum(1 for o in self.closed_positions if o.pnl > 0)
+        loss = sum(1 for o in self.closed_positions if o.pnl < 0)
         trades = win + loss
-        pos_pnl = sum(o.pnl for o in closed_position if o.pnl > 0)
-        neg_pnl = sum(-o.pnl for o in closed_position if o.pnl < 0)
+        pos_pnl = sum(o.pnl for o in self.closed_positions if o.pnl > 0)
+        neg_pnl = sum(-o.pnl for o in self.closed_positions if o.pnl < 0)
 
         # Rate
         win_rate = f"{win / trades:.2f}" if trades > 0 else "inf"
         profit_factor = f"{pos_pnl / neg_pnl:.2f}" if neg_pnl != 0 else "inf"
 
         # Drawdown
-        equity = pd.Series(self.acc.equity, index=self.forex_data.ohlcv.index)
-        balance = pd.Series(self.acc.balance, index=self.forex_data.ohlcv.index)
-        max_equity_drawdown = (equity.cummax() - equity).max()
-        max_balance_drawdown = (balance.cummax() - balance).max()
+        max_equity_drawdown = (self.equity_points.cummax() - self.equity_points).max()
+        max_balance_drawdown = (self.balance_points.cummax() - self.balance_points).max()
 
         print(f"{self.forex_data}")
-        print(f"Win | Loss | Trades | Win Rate              : {win:.0f} | {loss:.0f} | {trades:.0f} | {win_rate}")
-        print(f"+PnL | -PnL | Total PnL | Profit Factor     : {pos_pnl:.2f} | {-neg_pnl:.2f} | {pos_pnl - neg_pnl:.2f} | {profit_factor}")
-        print(f"Max Drawdown (equity diff) | (balance diff) : {-max_equity_drawdown:.2f} | {-max_balance_drawdown:.2f}")
+        print(f"Win | Loss | Trades | Win Rate             : {win:.0f} | {loss:.0f} | {trades:.0f} | {win_rate}")
+        print(f"+PnL | -PnL | Total PnL | Profit Factor    : {pos_pnl:.2f} | {-neg_pnl:.2f} | {pos_pnl - neg_pnl:.2f} | {profit_factor}")
+        print(f"Max Equity Drawdown | Max Balance Drawdown : {-max_equity_drawdown:.2f} | {-max_balance_drawdown:.2f}")
         print()
 
     def visualize(self):
@@ -44,28 +49,26 @@ class SimulationResult:
         # axes[0]
         axes[0].set_title(f"Simulation Result | {self.forex_data}")
         axes[0].set_ylabel("Price")
+        axes[0].yaxis.set_major_formatter(mticker.FormatStrFormatter(f'%.{self.forex_data.decimal_places}f'))
         axes[0].grid(alpha=0.3)
 
-        axes[0].plot(self.forex_data.ohlcv.close, label="Close Price", linewidth=1)
-
-        index = self.forex_data.ohlcv.index
-        closed_positions = self.acc.order_manager.closed_positions
-        for order in closed_positions:
+        axes[0].plot(self.forex_data.ohlcv["close"], label=self.forex_data.symbol, linewidth=1)
+        for order in self.closed_positions:
             c = "green" if order.pnl >= 0 else "red"
-            axes[0].plot([index[order.entry_idx], index[order.exit_idx]], [order.entry_price, order.exit_price], color=c, lw=5)
-
+            axes[0].plot(
+                [self.index[order.entry_idx], self.index[order.exit_idx]],
+                [order.entry_price, order.exit_price],
+                color=c, lw=5
+            )
         axes[0].legend()
 
         # axes[1]
-        balance = pd.Series(self.acc.balance, index=index)
-        equity = pd.Series(self.acc.equity, index=index)
-
         axes[1].set_xlabel("Time")
-        axes[1].set_ylabel("Price Diff")
+        axes[1].set_ylabel("Point Diff")
         axes[1].grid(alpha=0.3)
 
-        axes[1].plot(balance, label="Balance")
-        axes[1].plot(equity, label="Equity")
+        axes[1].plot(self.balance_points, label="Balance (point)")
+        axes[1].plot(self.equity_points, label="Equity (point)")
         axes[1].legend()
 
         plt.tight_layout()

@@ -42,6 +42,13 @@ class ForexData:
         self.close = self.ohlcv.close.to_numpy()
         self.volume = self.ohlcv.volume.to_numpy()
 
+        if self.symbol in ["XAUUSD", "USDJPY"]:
+            self.decimal_places = 2
+            self.tick_size = 0.01
+        else:
+            self.decimal_places = 4
+            self.tick_size = 0.0001
+
     def __len__(self):
         return len(self.ohlcv)
 
