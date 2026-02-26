@@ -16,7 +16,7 @@ logger = logging.getLogger(__name__)
 GATE_MA_SHORT_PERIOD = 50
 GATE_MA_LONG_PERIOD = 200
 ATR_PERIOD = 10
-SL_VOL_MUL = 10
+SL_VOL_MUL = 20
 
 
 class PrecomputedData:
@@ -61,16 +61,16 @@ class BacktestBot:
 
     def calculate_sl(self, close, vol):
         sl = close - SL_VOL_MUL * vol
-        assert sl < close
         return sl
 
     def act(self, idx: int, data: PrecomputedData, acc: Account):
+        order = acc.get_order()
         close = data.prices.close[idx]
         vol = data.misc["vol"][idx]
 
-        if acc.have_order():
+        if order:
             new_sl = self.calculate_sl(close, vol)
-            acc.order_manager.order.sl = max(acc.order_manager.order.sl, new_sl)
+            order.sl = max(order.sl, new_sl)
         else:
             if data.signals[idx] and not np.isnan(vol):
                 sl = self.calculate_sl(close, vol)
