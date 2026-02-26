@@ -19,52 +19,57 @@ ATR_PERIOD = 10
 SL_VOL_MUL = 10
 
 
+class PrecomputedData:
+    def __init__(self, forex_data: ForexData):
+        self.prices = forex_data
+        self.signals = None
+        self.misc = {}
+
+
 class BacktestBot:
     def __init__(self):
         self.pred_full = None
 
-    def precompute_data(self, forex_data: ForexData):
+    def _precompute_signals(self, forex_data: ForexData):
+        # Two separate models
+        # 1. Tactical (low level, low TF)
+        X = get_features(forex_data.ohlcv)
+        low_tf_clf = joblib.load(Path("alpha_lab", "models", "artifacts", "logreg_v1.pkl"))
+        low_tf_raw = pd.Series(low_tf_clf.predict(X), index=X.index)
+        low_tf = low_tf_raw.reindex(forex_data.ohlcv.index)
+
+        # 2. Strategic (high level, high TF)
+        ma_short = ta.ema(forex_data.ohlcv["close"], GATE_MA_SHORT_PERIOD)
+        ma_long = ta.ema(forex_data.ohlcv["close"], GATE_MA_LONG_PERIOD)
+        high_tf = (ma_short > ma_long)
+
+        # Final combined signal, Only valid where low_tf exists AND gate is True
+        # signals = (low_tf == 1) & (high_tf == True)
+        signals = low_tf
+        assert signals.index.to_list() == forex_data.ohlcv.index.to_list()
+        return signals.to_numpy()
+
+    def precompute_data(self, forex_data: ForexData) -> PrecomputedData:
         """
         Compute time-index aligned signals
         - Vectorized for most things, hopefully with no lookahead bias
         """
+        data = PrecomputedData(forex_data)
+        data.signals = self._precompute_signals(forex_data)  # Signals
+        data.misc["vol"] = forex_data.ohlcv.ta.atr(ATR_PERIOD).to_numpy()  # Additional data, for SL
+        return data
 
-        # self.n = len(self._ohlcv)
-        # self._ohlcv = self.data.ohlcv
-        # self.open = self._ohlcv["open"].to_numpy()
-        # self.high = self._ohlcv["high"].to_numpy()
-        # self.low = self._ohlcv["low"].to_numpy()
-        # self.close = self._ohlcv["close"].to_numpy()
-
-        data = forex_data
-        ohlcv = data.ohlcv
-    
-        # Two separate models
-        # 1. Tactical (low level, low TF)
-        X = get_features(ohlcv)
-        low_tf_clf = joblib.load(Path("alpha_lab", "models", "artifacts", "logreg_v1.pkl"))
-        low_tf_raw = pd.Series(low_tf_clf.predict(X), index=X.index)
-        low_tf = low_tf_raw.reindex(ohlcv.index)
-
-        # 2. Strategic (high level, high TF)
-        ma_short = ta.ema(ohlcv["close"], GATE_MA_SHORT_PERIOD)
-        ma_long = ta.ema(ohlcv["close"], GATE_MA_LONG_PERIOD)
-        high_tf = (ma_short > ma_long)
-
-        # Final combined signal, Only valid where low_tf exists AND gate is True
-        signals = (low_tf == 1) & (high_tf == True)
-        assert signals.index.to_list() == ohlcv.index.to_list()
-
-        self.vol = ohlcv.ta.atr(ATR_PERIOD).to_numpy()  # For SL
-        self.signals = signals.to_numpy()
-
-    @classmethod
-    def calculate_sl(cls, close, vol):
+    def calculate_sl(self, close, vol):
         return close - SL_VOL_MUL * vol
 
-    def act(self, idx: int, forex_data: ForexData, acc: Account):
+    def act(self, idx: int, data: PrecomputedData, acc: Account):
+        close = data.prices.close[idx]
+        vol = data.misc["vol"][idx]
+
         if acc.have_order():
-            return
-        
-        sl = self.calculate_sl(forex_data.close[idx], self.vol[idx])
-        acc.open_order(idx, forex_data.close[idx], sl)
+            new_sl = self.calculate_sl(close, vol)
+            acc.order_manager.order.sl = max(acc.order_manager.order.sl, new_sl)
+        else:
+            if data.signals[idx] and not np.isnan(vol):
+                sl = self.calculate_sl(close, vol)
+                acc.open_order(idx, close, sl)

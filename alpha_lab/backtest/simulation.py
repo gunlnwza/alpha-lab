@@ -69,24 +69,23 @@ class SimulationResult:
 
 
 class Simulation:
-    def __init__(self, forex_data: ForexData):
+    def __init__(self, forex_data: ForexData, acc: Account, bot: BacktestBot):
         self.forex_data = forex_data
-        self.acc = Account()
-
-        self.bot = BacktestBot()
-        self.bot.precompute_data(forex_data)
+        self.acc = acc
+        self.bot = bot
 
         self.result = None
 
     def run(self):
         prices = self.forex_data
+        data = self.bot.precompute_data(prices)
 
-        for i in range(len(prices)):
+        for i in range(len(data.prices)):
             order = self.acc.order_manager.order
             if order and prices.low[i] < order.sl:
                 order.sl_hit(i)
 
-            self.bot.act(i, prices, self.acc)
+            self.bot.act(i, data, self.acc)
 
             self.acc.update_equity(prices.close[i])
 

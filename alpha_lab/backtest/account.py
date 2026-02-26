@@ -31,13 +31,12 @@ class OrderManager:
 
     def close_order(self, idx: int, close: float) -> float:
         self.order.close(idx, close)
-        pnl = self.order.pnl
-
         self.closed_orders.append(self.order)
-        self.order = None
 
+        pnl = self.order.pnl
+        self.order = None
         return pnl
-    
+
     def unrealized_pnl(self, close: float) -> float:
         if not self.order:
             return 0.0
