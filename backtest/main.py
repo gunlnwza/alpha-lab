@@ -1,12 +1,12 @@
 import logging
 from utils import ForexData
-from simulation import simulate
+from simulation import Simulation
 
 logging.basicConfig(
     filename="app.log",
     level=logging.INFO,
     format="%(levelname)s | %(message)s",
-    filemode="w"   # <-- this overwrites the file
+    filemode="w"
 )
 
 
@@ -14,9 +14,10 @@ def main():
     data = ForexData("twelve_data", "XAUUSD", "5min")
     # data.ohlcv = data.ohlcv[:500]
 
-    res = simulate(data)
-    res.report()
-    res.visualize()
+    sim = Simulation(data)
+    sim.run()
+    sim.result.report()
+    sim.result.visualize()
 
 
 if __name__ == "__main__":

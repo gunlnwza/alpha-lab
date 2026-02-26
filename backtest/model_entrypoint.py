@@ -1,12 +1,28 @@
 import joblib
 import pandas as pd
 
-from simulation import SimulationData
-
 from models.features import get_features
 
+from typing import TYPE_CHECKING
+if TYPE_CHECKING:
+    from simulation import SimulationData
 
-def get_signals(data: SimulationData):
+# TODO: different configs for different assets
+
+SL_VOL_MUL = 10
+
+GATE_MA_SHORT_PERIOD = 50
+GATE_MA_LONG_PERIOD = 200
+
+ATR_PERIOD = 10
+
+
+def get_signals(data: "SimulationData"):
+    """
+    Return time-index aligned signals
+    - Vectorized for most things, hopefully with no lookahead bias
+    """
+
     # Two separate models
     # 1. Tactical (low level, low TF)
     X = get_features(data._ohlcv)
@@ -25,4 +41,5 @@ def get_signals(data: SimulationData):
     # Only valid where low_tf exists AND gate is True
     pred_full = (low_tf == 1) & (high_tf == True)
 
+    assert pred_full.index.to_list() == data._ohlcv.index.to_list()
     return pred_full

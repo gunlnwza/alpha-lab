@@ -1,4 +1,4 @@
-from config import SL_VOL_MUL
+from model_entrypoint import SL_VOL_MUL
 
 
 class BuyOrder:

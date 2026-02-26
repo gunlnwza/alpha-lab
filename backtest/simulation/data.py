@@ -1,6 +1,6 @@
 import pandas_ta as ta
 
-from config import ATR_PERIOD, GATE_MA_SHORT_PERIOD, GATE_MA_LONG_PERIOD
+from model_entrypoint import ATR_PERIOD, GATE_MA_SHORT_PERIOD, GATE_MA_LONG_PERIOD
 from utils import ForexData
 
 
