@@ -17,6 +17,7 @@ models/artifacts
 # Logs
 logs
 log
+*.log
 
 # Images
 imgs

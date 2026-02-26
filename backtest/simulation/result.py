@@ -1,7 +1,7 @@
 import matplotlib.pyplot as plt
 
-from backtest.simulation.data import SimulationData
-from account import Account
+from .data import SimulationData
+from .account import Account
 
 
 class SimulationResult:
@@ -10,14 +10,15 @@ class SimulationResult:
         self.acc = acc
 
     def report(self):
-        win = sum(1 for o in self.acc.closed_orders if o.pnl > 0)
-        loss = sum(1 for o in self.acc.closed_orders if o.pnl < 0)
+        closed_orders = self.acc.order_manager.closed_orders
+        win = sum(1 for o in closed_orders if o.pnl > 0)
+        loss = sum(1 for o in closed_orders if o.pnl < 0)
         trades = win + loss
-        pos_pnl = sum(o.pnl for o in self.acc.closed_orders if o.pnl > 0)
-        neg_pnl = sum(-o.pnl for o in self.acc.closed_orders if o.pnl < 0)
+        pos_pnl = sum(o.pnl for o in closed_orders if o.pnl > 0)
+        neg_pnl = sum(-o.pnl for o in closed_orders if o.pnl < 0)
 
-        win_rate = win / trades if trades > 0 else "inf"
-        profit_per_loss = pos_pnl / neg_pnl if neg_pnl != 0 else 'inf'
+        win_rate = win / trades if trades > 0 else 0
+        profit_per_loss = pos_pnl / neg_pnl if neg_pnl != 0 else 0
 
         print("-" * 40)
         print(f"{self.data.forex_data}")
@@ -34,7 +35,8 @@ class SimulationResult:
         plt.plot(self.data.ma_short, label="Gate MA Short", linewidth=1)
         plt.plot(self.data.ma_long, label="Gate MA Long", linewidth=1)
 
-        for order in self.acc.closed_orders:
+        closed_orders = self.acc.order_manager.closed_orders
+        for order in closed_orders:
             c = "green" if order.pnl >= 0 else "red"
             plt.plot([order.entry_idx, order.exit_idx], [order.entry_price, order.exit_price], color=c, lw=5)
 

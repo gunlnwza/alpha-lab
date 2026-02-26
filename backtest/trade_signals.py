@@ -1,7 +1,7 @@
 import joblib
 import pandas as pd
 
-from backtest.simulation.data import SimulationData
+from simulation import SimulationData
 
 from models.features import get_features
 

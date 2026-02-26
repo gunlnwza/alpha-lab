@@ -1,7 +1,7 @@
 import pandas_ta as ta
-from utils import ForexData
 
 from config import ATR_PERIOD, GATE_MA_SHORT_PERIOD, GATE_MA_LONG_PERIOD
+from utils import ForexData
 
 
 class SimulationData:

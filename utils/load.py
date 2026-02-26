@@ -30,8 +30,6 @@ class ForexData:
         ohlcv_raw = load_parquet(source, symbol, tf)
         self.ohlcv = drop_weekend(ohlcv_raw)  # remove weekend, like most charting software
 
-        self.inv_ohlcv = inverse_ohlcv(self.ohlcv)
-
     def __str__(self):
         return f"{self.source}'s {self.symbol} ({self.tf})"
 
