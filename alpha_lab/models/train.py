@@ -12,6 +12,7 @@ from sklearn.metrics import confusion_matrix, classification_report
 from alpha_lab.utils import load_parquet, drop_weekend, divide_timeseries, triple_barrier_labels
 from alpha_lab.models.features import get_features, get_features_labels
 
+# TODO: MOVE TO UTILS, these would be notebooks utils, not library code
 
 def plot_buy_labels(df: pd.DataFrame, signals: pd.Series):
     plt.figure(figsize=(15, 5))
