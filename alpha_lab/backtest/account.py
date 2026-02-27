@@ -115,7 +115,7 @@ class OrderManager:
             raise RuntimeError("Cannot open limit: limit already exists")
         if self.position is not None:
             raise RuntimeError("Cannot open limit: position already exists")
-        self.limit = BuyLimit(idx, entry_price, entry_sl, entry_tp)
+        self.limit = Limit(Side.BUY, idx, entry_price, entry_sl, entry_tp)
 
     def _close_limit(self, idx: int):
         if self.limit is None:
@@ -125,12 +125,12 @@ class OrderManager:
     def _open_position(self, idx: int, close: float, sl: float, tp: float | None = None):
         if self.position is not None:
             raise RuntimeError("Cannot open position: position already exists")
-        self.position = BuyPosition(idx, close, sl, tp)
+        self.position = Position(Side.BUY, idx, close, sl, tp)
 
     def _close_position(self, idx: int, close: float) -> float:
         if self.position is None:
             raise RuntimeError("No open position to close")
-        self.position._close(idx, close)
+        self.position.close(idx, close)
         self.closed_positions.append(self.position)
 
         pnl = self.position.pnl
@@ -140,7 +140,7 @@ class OrderManager:
     def _unrealized_pnl(self, close: float) -> float:
         if self.position is None:
             return 0.0
-        return self.position._pnl(close)
+        return self.position.unrealized_pnl(close)
 
 
 class Account:
