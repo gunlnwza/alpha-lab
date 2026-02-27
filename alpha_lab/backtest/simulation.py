@@ -25,7 +25,7 @@ class SimulationResult:
         self.bot = bot
 
         self.index = self.forex_data.ohlcv.index
-        self.closed_positions = self.acc.order_manager.closed_positions
+        self.closed_positions = self.acc.engine.closed_positions
 
         self.tens = pow(10, self.forex_data.decimal_places)
         self.balance_points = pd.Series(self.acc.balance, index=self.index) * self.tens
@@ -117,21 +117,16 @@ class Simulation:
         prices = self.forex_data
         data = self.bot.precompute_data(prices)
         acc = self.acc
+        engine = self.acc.engine
+        bot = self.bot
 
         for i in range(len(data.prices)):
-            if i == len(data.prices) - 1:  # latest bar, no meaning asking bot what to do
-                if acc.have_position():
-                    acc.close_position(i, prices.close[i])
+            if i == len(data.prices) - 1:  # latest bar, no meaning asking bot what to do, force close
+                if acc.have_order():
+                    acc.close_order(i, prices.close[i])
             else:
-                if acc.have_limit():
-                    acc._check_limit(i, prices.high[i], prices.low[i])
-                elif acc.have_position():
-                    acc._check_sl(i, prices.high[i], prices.low[i])
-                    if acc.have_position():
-                        acc._check_tp(i, prices.high[i], prices.low[i])
+                acc.process_bar(i, prices.high[i], prices.low[i], prices.close[i])
+                bot.act(i, data, self.acc)
+            acc.update_money(i, prices.close[i])
 
-                self.bot.act(i, data, self.acc)
-
-            self.acc._update_money(i, prices.close[i])
-
-        self.result = SimulationResult(prices, self.acc, self.bot)
+        self.result = SimulationResult(prices, acc, bot)

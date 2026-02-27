@@ -1,4 +1,4 @@
-from alpha_lab.backtest.account import Account
+from alpha_lab.backtest.account import Account, Limit, Position, Side, OrderType
 from alpha_lab.backtest.bot import BacktestBotTemplate, PrecomputedData
 from alpha_lab.utils import ForexData
 
@@ -38,22 +38,21 @@ class BuyLimitBot(BacktestBotTemplate):
         ma_long = data.misc["ma_long"][idx]
         vol = data.misc["vol"][idx]
 
-        limit = acc.get_limit()
-        position = acc.get_position()
+        order = acc.get_order()
 
         # ---
         uptrend = (not np.isnan(ma_long)) and ma_short > ma_long
 
-        if limit:
+        if isinstance(order, Limit):
             if self.ttl > 0:
                 self.ttl -= 1
             if self.ttl == 0:
-                acc.close_limit(idx)
-        elif position:
+                acc.close_order(idx, close)
+        elif isinstance(order, Position):
             new_sl = self.calculate_sl(close, vol)
-            if new_sl > position.sl:
-                position.set_sl(close, new_sl)
+            if new_sl > order.sl:
+                order.set_sl(close, new_sl)
         else:
             if uptrend and not np.isnan(vol):
-                acc.open_limit(idx, close - 3 * vol, close - 6 * vol)
+                acc.open_order(Side.BUY, OrderType.LIMIT, idx, close - 3 * vol, close - 6 * vol)
                 self.ttl = LIMIT_TTL

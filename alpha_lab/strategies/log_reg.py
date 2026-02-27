@@ -1,4 +1,4 @@
-from alpha_lab.backtest.account import Account
+from alpha_lab.backtest.account import Account, Side, OrderType
 from alpha_lab.backtest.bot import BacktestBotTemplate, PrecomputedData
 from alpha_lab.utils import ForexData
 
@@ -49,16 +49,16 @@ class LogRegBot(BacktestBotTemplate):
         return close - SL_VOL_MUL * vol
 
     def act(self, idx: int, data: PrecomputedData, acc: Account):
-        position = acc.get_position()
+        order = acc.get_order()
         close = data.prices.close[idx]
         vol = data.misc["vol"][idx]
 
         # ---
-        if acc.have_position():
+        if order:
             new_sl = self.calculate_sl(close, vol)
-            if new_sl > position.sl:
-                position.set_sl(close, new_sl)
+            if new_sl > order.sl:
+                order.set_sl(close, new_sl)
         else:
             if data.signals[idx] and not np.isnan(vol):
                 sl = self.calculate_sl(close, vol)
-                acc.open_position(idx, close, sl)
+                acc.open_order(Side.BUY, OrderType.POSITION, idx, close, sl)
