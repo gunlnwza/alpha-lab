@@ -1,4 +1,7 @@
+import sys
 import logging
+import argparse
+
 from alpha_lab.backtest.simulation import Simulation
 from alpha_lab.backtest.account import Account
 from alpha_lab.backtest.bot import BacktestBot

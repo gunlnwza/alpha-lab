@@ -30,7 +30,22 @@ class ForexData:
         self.symbol = symbol.upper()
         self.tf = tf
 
-        ohlcv_raw = load_parquet(source, symbol, tf)
+        ohlcv_raw = None
+        try:
+            ohlcv_raw = load_parquet(source, symbol, tf)
+        except FileNotFoundError:
+            fallback = ["twelve_data", "alpha_vantage", "massive"]
+            fallback.remove(source)
+            for s in fallback:
+                try:
+                    ohlcv_raw = load_parquet(s, symbol, tf)
+                    self.source = s
+                    break
+                except FileNotFoundError:
+                    pass
+        finally:
+            if ohlcv_raw is None:
+                raise RuntimeError("Cannot load forex data")
         self.ohlcv = drop_weekend(ohlcv_raw)  # remove weekend, like most charting software
 
         self.open = self.ohlcv.open.to_numpy()
@@ -38,6 +53,13 @@ class ForexData:
         self.low = self.ohlcv.low.to_numpy()
         self.close = self.ohlcv.close.to_numpy()
         self.volume = self.ohlcv.volume.to_numpy()
+
+        if self.symbol in ["XAUUSD", "USDJPY"]:
+            self.decimal_places = 2
+            self.tick_size = 0.01
+        else:
+            self.decimal_places = 4
+            self.tick_size = 0.0001
 
     def __len__(self):
         return len(self.ohlcv)
