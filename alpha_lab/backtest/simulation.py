@@ -8,7 +8,7 @@ import matplotlib.pyplot as plt
 import matplotlib.ticker as mticker
 
 from alpha_lab.utils import ForexData
-from alpha_lab.backtest.bot import BacktestBot
+from alpha_lab.backtest.bot import BacktestBotTemplate
 from alpha_lab.backtest.account import Account
 
 from rich.console import Console
@@ -19,7 +19,7 @@ console = Console()
 
 
 class SimulationResult:
-    def __init__(self, forex_data: ForexData, acc: Account, bot: BacktestBot):
+    def __init__(self, forex_data: ForexData, acc: Account, bot: BacktestBotTemplate):
         self.forex_data = forex_data
         self.acc = acc
         self.bot = bot
@@ -106,7 +106,7 @@ class SimulationResult:
 
 
 class Simulation:
-    def __init__(self, forex_data: ForexData, acc: Account, bot: BacktestBot):
+    def __init__(self, forex_data: ForexData, acc: Account, bot: BacktestBotTemplate):
         self.forex_data = forex_data
         self.acc = acc
         self.bot = bot
