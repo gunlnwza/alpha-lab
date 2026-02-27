@@ -22,6 +22,7 @@ def main():
     parser.add_argument("symbol")
     parser.add_argument("tf")
     parser.add_argument("strategy")
+    parser.add_argument("-v", "--no-visual", action="store_true")
     args = parser.parse_args()
 
     try:
@@ -47,7 +48,8 @@ def main():
     print(f"Simulation time: {time_end - time_start:.3f}s")
 
     sim.result.report()
-    sim.result.visualize()
+    if not args.no_visual:
+        sim.result.visualize()
 
 
 if __name__ == "__main__":
