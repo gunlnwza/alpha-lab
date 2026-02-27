@@ -65,7 +65,7 @@ def get_features(df: pd.DataFrame) -> pd.DataFrame:
 
 class LogRegBot(BacktestBot):
     def __init__(self):
-        super().__init__(name="logistic_regression")
+        super().__init__("logistic_regression")
 
     def precompute_data(self, forex_data: ForexData) -> PrecomputedData:
         data = PrecomputedData(forex_data)

@@ -7,8 +7,8 @@ LONG_PERIOD = 200
 
 
 class MaCrossBot(BacktestBot):
-    def __init__(self, name="ma_cross"):
-        self.name = name
+    def __init__(self):
+        super().__init__("ma_cross")
 
     def precompute_data(self, forex_data: ForexData) -> PrecomputedData:
         data = PrecomputedData(forex_data)

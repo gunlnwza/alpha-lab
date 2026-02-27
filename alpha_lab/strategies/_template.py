@@ -4,12 +4,11 @@ from alpha_lab.utils import ForexData
 
 
 class TemplateBot(BacktestBot):
-    def __init__(self, name="template"):
-        self.name = name
+    def __init__(self):
+        super().__init__("template")
 
     def precompute_data(self, forex_data: ForexData) -> PrecomputedData:
-        data = PrecomputedData(forex_data)
-        return data
+        return super().precompute_data(forex_data)
 
-    def act(self, idx: int, data: PrecomputedData, acc: Account):
+    def act(self, data: PrecomputedData, acc: Account):
         pass
