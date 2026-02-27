@@ -7,18 +7,21 @@ from alpha_lab.utils import ForexData
 
 from alpha_lab.backtest.bot import BacktestBotTemplate, PrecomputedData
 
+# ---
+# Config
 LIMIT_TTL = 30
 
 GATE_MA_SHORT_PERIOD = 50
 GATE_MA_LONG_PERIOD = 200
 
 ATR_PERIOD = 10
-SL_VOL_MUL = 10
+SL_VOL_MUL = 20
+# ---
 
 
 class BuyLimitBot(BacktestBotTemplate):
     def __init__(self):
-        self.pred_full = None
+        super().__init__("buy_limit")
         self.ttl = 0
 
     def precompute_data(self, forex_data: ForexData) -> PrecomputedData:
@@ -53,7 +56,6 @@ class BuyLimitBot(BacktestBotTemplate):
             if new_sl > position.sl:
                 position.set_sl(close, new_sl)
         else:
-            if uptrend:
-                if not np.isnan(vol):
-                    acc.open_limit(idx, close - 2 * vol, close - 4 * vol)
-                    self.ttl = LIMIT_TTL
+            if uptrend and not np.isnan(vol):
+                acc.open_limit(idx, close - 3 * vol, close - 6 * vol)
+                self.ttl = LIMIT_TTL

@@ -11,16 +11,18 @@ from alpha_lab.utils import ForexData
 
 from alpha_lab.models.features import get_features  # TODO: smell
 
+# ---
+# Config
 GATE_MA_SHORT_PERIOD = 50
 GATE_MA_LONG_PERIOD = 200
 
 ATR_PERIOD = 10
 SL_VOL_MUL = 10
+# ---
 
-
-class LogisticRegressionBot(BacktestBotTemplate):
+class LogRegBot(BacktestBotTemplate):
     def __init__(self):
-        super().__init__(name="logistic_regression")
+        super().__init__(name="log_reg")
 
     def precompute_data(self, forex_data: ForexData) -> PrecomputedData:
         data = PrecomputedData(forex_data)

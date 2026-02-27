@@ -1,6 +1,7 @@
 import sys
 import logging
 import argparse
+import importlib
 
 from alpha_lab.backtest.simulation import Simulation
 from alpha_lab.backtest.account import Account
@@ -28,18 +29,13 @@ def main():
         sys.exit(e)
 
     try:
-        # from alpha.lab.strategies import 'args.strat'
-        # bot = args.strat the imported class()
-        if args.strategy == "first":
-            from alpha_lab.strategies.first import LogisticRegressionBot
-            bot = LogisticRegressionBot()
-        elif args.strategy == "second":
-            from alpha_lab.strategies.second import BuyLimitBot
-            bot = BuyLimitBot()
-        else:
-            raise RuntimeError("Cannot load strategy")
-    except RuntimeError:
-        sys.exit(e)
+        strategy_name = args.strategy  # e.g. "log_reg", "buy_limit"
+        module = importlib.import_module(f"alpha_lab.strategies.{strategy_name}")
+        class_name = "".join(part.capitalize() for part in strategy_name.split("_")) + "Bot"  # Convention: class name is CamelCase + "Bot"
+        BotClass = getattr(module, class_name)
+        bot = BotClass()
+    except (ModuleNotFoundError, AttributeError) as e:
+        sys.exit(f"Cannot load strategy '{args.strategy}'")
 
     acc = Account()
     sim = Simulation(forex_data, acc, bot)

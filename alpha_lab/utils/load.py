@@ -45,7 +45,7 @@ class ForexData:
                     pass
         finally:
             if ohlcv_raw is None:
-                raise RuntimeError("Cannot load forex data")
+                raise FileNotFoundError("Cannot load forex data")
         self.ohlcv = drop_weekend(ohlcv_raw)  # remove weekend, like most charting software
 
         self.open = self.ohlcv.open.to_numpy()
