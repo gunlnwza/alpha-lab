@@ -52,7 +52,7 @@ class SimulationResult:
         max_balance_drawdown = (self.balance_points.cummax() - self.balance_points).max()
 
         # Print
-        table = Table(title=f"{self.forex_data}", box=box.SIMPLE_HEAVY)
+        table = Table(title=f"{self.forex_data}\n{self.bot.name}", box=box.SIMPLE_HEAVY)
 
         table.add_column("Metric", justify="left"); table.add_column("Value", justify="right")
         table.add_row("Win", f"{win:.0f}")
@@ -77,7 +77,7 @@ class SimulationResult:
         fig, axes = plt.subplots(2, 1, height_ratios=[2, 1], sharex=True, figsize=(12, 6))
 
         # axes[0]
-        axes[0].set_title(f"Simulation Result | {self.forex_data}")
+        axes[0].set_title(f"Simulation Result | {self.forex_data} | {self.bot.name}")
         axes[0].set_ylabel("Price")
         axes[0].yaxis.set_major_formatter(mticker.FormatStrFormatter(f'%.{self.forex_data.decimal_places}f'))
         axes[0].grid(alpha=0.3)

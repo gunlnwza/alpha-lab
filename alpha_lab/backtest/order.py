@@ -46,12 +46,12 @@ class Order(ABC):
 
     def _assert_sl_tp_consistent(self, price: float):
         if self.side == Side.BUY:
-            if self.sl >= price:
+            if self.sl and self.sl >= price:
                 raise ValueError("Invalid SL for BUY")
             if self.tp is not None and self.tp <= price:
                 raise ValueError("Invalid TP for BUY")
         else:
-            if self.sl <= price:
+            if self.sl and self.sl <= price:
                 raise ValueError("Invalid SL for SELL")
             if self.tp is not None and self.tp >= price:
                 raise ValueError("Invalid TP for SELL")

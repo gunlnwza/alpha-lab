@@ -5,9 +5,6 @@ from alpha_lab.utils import ForexData
 import numpy as np
 import pandas_ta as ta
 
-# ---
-# Config
-
 LIMIT_TTL = 30
 
 GATE_MA_SHORT_PERIOD = 50
@@ -15,8 +12,6 @@ GATE_MA_LONG_PERIOD = 200
 
 ATR_PERIOD = 10
 SL_VOL_MUL = 10
-
-# ---
 
 
 class BuyLimitBot(BacktestBot):

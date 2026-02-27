@@ -3,6 +3,7 @@ import pandas_ta as ta
 
 # TODO: MOVE TO NOTEBOOK, this would be inside a notebook
 # Must have util that allow saving model
+# (delete this file later)
 
 def _compute_features(df: pd.DataFrame) -> pd.DataFrame:
     """

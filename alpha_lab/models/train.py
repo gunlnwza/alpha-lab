@@ -13,6 +13,7 @@ from alpha_lab.utils import load_parquet, drop_weekend, divide_timeseries, tripl
 from alpha_lab.models.features import get_features, get_features_labels
 
 # TODO: MOVE TO UTILS, these would be notebooks utils, not library code
+# (delete this file later)
 
 def plot_buy_labels(df: pd.DataFrame, signals: pd.Series):
     plt.figure(figsize=(15, 5))

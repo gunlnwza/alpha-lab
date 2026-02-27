@@ -8,10 +8,7 @@ import numpy as np
 import pandas as pd
 import pandas_ta as ta
 
-from alpha_lab.models.features import get_features  # TODO: smell
-
-# ---
-# Config
+from alpha_lab.models.features import get_features  # TODO: should load from artifacts folder, must delete temp-looking script files
 
 GATE_MA_SHORT_PERIOD = 50
 GATE_MA_LONG_PERIOD = 200
@@ -19,7 +16,6 @@ GATE_MA_LONG_PERIOD = 200
 ATR_PERIOD = 10
 SL_VOL_MUL = 10
 
-# ---
 
 class LogRegBot(BacktestBot):
     def __init__(self):
