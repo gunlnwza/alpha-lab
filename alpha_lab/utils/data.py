@@ -1,26 +1,24 @@
 from pathlib import Path
 
-import numpy as np
 import pandas as pd
 
-from alpha_lab.utils.preprocess import drop_weekend
+from alpha_lab.utils.preprocessing import drop_weekend
+
+_DATA = Path(__file__).parents[2] / ".finloader_data"
 
 
-_DATA_DIR = Path(__file__).parents[2] / ".finloader_data"
-
-
-def _get_path(source: str, symbol: str, tf: str, extension: str):
+def _get_data_path(source: str, symbol: str, tf: str, extension: str):
     symbol = symbol.upper()
-    return Path(_DATA_DIR, source, symbol, f"{source}_{symbol}_{tf}.{extension}")
+    return Path(_DATA, source, symbol, f"{source}_{symbol}_{tf}.{extension}")
 
 
 def load_csv(source: str, symbol: str, tf: str) -> pd.DataFrame:
-    path = _get_path(source, symbol, tf, "csv")
+    path = _get_data_path(source, symbol, tf, "csv")
     return pd.read_csv(path, index_col="time", parse_dates=True)
 
 
 def load_parquet(source: str, symbol: str, tf: str) -> pd.DataFrame:
-    path = _get_path(source, symbol, tf, "parquet")
+    path = _get_data_path(source, symbol, tf, "parquet")
     return pd.read_parquet(path)
 
 
@@ -41,7 +39,7 @@ class ForexData:
             ohlcv_raw = load_parquet(source, symbol, tf)
         except FileNotFoundError as e:
             raise e
-        self.ohlcv = drop_weekend(ohlcv_raw)  # remove weekend, like most charting software
+        self.ohlcv = drop_weekend(ohlcv_raw)  # remove weekends, like most charting software
 
         self.open = self.ohlcv.open.to_numpy()
         self.high = self.ohlcv.high.to_numpy()

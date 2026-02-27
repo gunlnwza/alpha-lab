@@ -15,11 +15,14 @@ backup_*
 *.parquet
 
 */models/artifacts
+.model_artifacts
 
-# Logs
+# Logs & Notes
 logs
 log
 *.log
+
+TODO
 
 # Images
 imgs
