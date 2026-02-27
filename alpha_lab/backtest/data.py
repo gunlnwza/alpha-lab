@@ -51,6 +51,10 @@ class PrecomputedData:
             self._forex_data.low[i],
             self._forex_data.close[i],
         )
+    
+    @property
+    def forex_data(self) -> ForexData:
+        return self._forex_data
 
     def step(self):
         object.__setattr__(self, "_i", self._i + 1)
