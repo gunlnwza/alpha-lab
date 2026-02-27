@@ -32,6 +32,7 @@ venv
 .venv
 __pycache__
 *.pkl
+*.egg-info
 
 # .ipynb
 .notebooks
