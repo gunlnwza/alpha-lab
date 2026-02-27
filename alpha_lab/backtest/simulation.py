@@ -117,7 +117,6 @@ class Simulation:
         prices = self.forex_data
         data = self.bot.precompute_data(prices)
         acc = self.acc
-        engine = self.acc.engine
         bot = self.bot
 
         for i in range(len(data.prices)):
