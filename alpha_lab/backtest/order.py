@@ -2,6 +2,8 @@ from enum import Enum
 from abc import ABC, abstractmethod
 from typing import Optional
 
+from alpha_lab.backtest.data import Bar
+
 
 class Side(Enum):
     BUY = 1
@@ -19,8 +21,8 @@ class Order(ABC):
         side: Side,
         idx: int,
         entry_price: float,
-        sl: float | None = None,
-        tp: float | None = None,
+        sl: float | None,
+        tp: float | None
     ):
         self.side = side
         self.entry_idx = idx
@@ -90,7 +92,7 @@ class Order(ABC):
         self._assert_is_open()  # if already closed, use self.pnl field instead
         return 0.0
 
-    def close(self, idx: int, price: float) -> float:
+    def close(self, idx: int, price: float) -> float:  # must use this interface to ensure flexible closing at any price
         self._assert_is_open()
         pnl = self.unrealized_pnl(price)
         self.pnl = pnl
@@ -102,7 +104,7 @@ class Order(ABC):
     # Update
 
     @abstractmethod
-    def on_bar(self, idx: int, high: float, low: float, close: float) -> tuple[float, Optional["Order"]]:
+    def on_bar(self, bar: Bar) -> tuple[float, Optional["Order"]]:  # more convenient and easier to read to use bar
         pnl = 0.0
         new_order = None
         return pnl, new_order
@@ -114,8 +116,8 @@ class Limit(Order):
         side: Side,
         idx: int,
         entry_price: float,
-        sl: float | None = None,
-        tp: float | None = None,
+        sl: float | None,
+        tp: float | None
     ):
         super().__init__(side, idx, entry_price, sl, tp)
         self.type = OrderType.LIMIT
@@ -123,18 +125,16 @@ class Limit(Order):
     def unrealized_pnl(self, price: float) -> float:
         return super().unrealized_pnl(price)
     
-    def on_bar(self, idx: int, high: float, low: float, close: float) -> tuple[float, Optional["Order"]]:
+    def on_bar(self, bar: Bar) -> tuple[float, Optional["Order"]]:
         """Might close, must check after"""
         new_order = None
 
-        if self.side == Side.BUY:
-            if low < self.entry_price:
-                self.close(idx, close)
-                new_order = Position(Side.BUY, idx, self.entry_price, self.sl, self.tp)
-        else:
-            if high > self.entry_price:
-                self.close(idx, close)
-                new_order = Position(Side.SELL, idx, self.entry_price, self.sl, self.tp)
+        if (
+            (self.side == Side.BUY and bar.low < self.entry_price)
+            or (self.side == Side.SELL and bar.high > self.entry_price)
+        ):
+            self.close(bar.idx, bar.close)
+            new_order = Position(self.side, bar.idx, self.entry_price, self.sl, self.tp)
 
         return 0.0, new_order
 
@@ -145,8 +145,8 @@ class Position(Order):
         side: Side,
         idx: int,
         entry_price: float,
-        sl: float | None = None,
-        tp: float | None = None,
+        sl: float | None,
+        tp: float | None
     ):
         super().__init__(side, idx, entry_price, sl, tp)
         self.type = OrderType.POSITION
@@ -156,19 +156,19 @@ class Position(Order):
         direction = self.side.value
         return direction * (price - self.entry_price)
 
-    def on_bar(self, idx: int, high: float, low: float, close: float) -> tuple[float, Optional["Order"]]:
+    def on_bar(self, bar: Bar) -> tuple[float, Optional["Order"]]:
         """Might close, must check after"""
         pnl = 0.0
 
         if self.side == Side.BUY:
-            if self.sl and low < self.sl:
-                pnl = self.close(idx, self.sl)
-            elif self.tp and high > self.tp:
-                pnl = self.close(idx, self.tp)
+            if self.sl and bar.low < self.sl:
+                pnl = self.close(bar.idx, self.sl)
+            elif self.tp and bar.high > self.tp:
+                pnl = self.close(bar.idx, self.tp)
         else:
-            if self.sl and high > self.sl:
-                pnl = self.close(idx, self.sl)
-            elif self.tp and low < self.tp:
-                pnl = self.close(idx, self.tp)
+            if self.sl and bar.high > self.sl:
+                pnl = self.close(bar.idx, self.sl)
+            elif self.tp and bar.low < self.tp:
+                pnl = self.close(bar.idx, self.tp)
 
         return pnl, None

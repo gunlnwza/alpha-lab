@@ -1,3 +1,4 @@
+from alpha_lab.backtest.data import Bar
 from alpha_lab.backtest.order import Side, OrderType, Order, Limit, Position
 
 
@@ -21,11 +22,11 @@ class OrderEngine:
         if not self.have_order():
             raise ValueError("No open order")
 
-    def open_limit(self, side: Side, idx: int, entry_price: float, sl: float, tp: float):
+    def open_limit(self, side: Side, idx: int, entry_price: float, sl: float | None, tp: float | None):
         self._assert_no_order()
         self.order = Limit(side, idx, entry_price, sl, tp)
 
-    def open_position(self, side: Side, idx: int, entry_price: float, sl: float, tp: float):
+    def open_position(self, side: Side, idx: int, entry_price: float, sl: float | None, tp: float | None):
         self._assert_no_order()
         self.order = Position(side, idx, entry_price, sl, tp)
 
@@ -40,14 +41,14 @@ class OrderEngine:
         else:
             raise ValueError("Unknown order type")
 
-    def close_order(self, idx: int, close: float) -> float:
+    def close_order(self, bar: Bar) -> float:
         """Return PnL"""
         self._assert_have_order()
 
         order = self.order
         self.order = None
 
-        pnl = order.close(idx, close)
+        pnl = order.close(bar.idx, bar.close)
         self._append_closed_order(order)
         return pnl
 
@@ -56,13 +57,13 @@ class OrderEngine:
             return 0.0
         return self.order.unrealized_pnl(close)
     
-    def process_bar(self, idx: int, high: float, low: float, close: float) -> float:
+    def process_bar(self, bar: Bar) -> float:
         """Return realized PnL for this bar"""
         if self.order is None:
             return 0.0
 
         current_order = self.order
-        pnl, new_order = current_order.on_bar(idx, high, low, close)
+        pnl, new_order = current_order.on_bar(bar)
 
         # If order closed during this bar, archive it exactly once
         if current_order.is_closed():
@@ -100,16 +101,16 @@ class Account:
         elif order_type == OrderType.POSITION:
             self.engine.open_position(side, idx, entry_price, sl, tp)
 
-    def close_order(self, idx: int, close: int):
-        pnl = self.engine.close_order(idx, close)
+    def close_order(self, bar: Bar):
+        pnl = self.engine.close_order(bar)
         self.cumu_balance += pnl
 
-    def process_bar(self, idx: int, high: float, low: float, close: float):
-        pnl = self.engine.process_bar(idx, high, low, close)
+    def process_bar(self, bar: Bar):
+        pnl = self.engine.process_bar(bar)
         self.cumu_balance += pnl
 
-    def update_money(self, idx: int, close: float):  # TODO: might use `idx` with numpy array later
+    def update_money(self, bar: Bar):
         self.balance.append(self.cumu_balance)
 
-        pnl = float(self.engine.unrealized_pnl(close))
+        pnl = float(self.engine.unrealized_pnl(bar.close))
         self.equity.append(self.cumu_balance + pnl)

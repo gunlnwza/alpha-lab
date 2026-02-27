@@ -21,23 +21,26 @@ class BuyLimitBot(BacktestBot):
 
     def precompute_data(self, forex_data: ForexData) -> PrecomputedData:
         data = PrecomputedData(forex_data)
-        data.misc["vol"] = forex_data.ohlcv.ta.atr(ATR_PERIOD).to_numpy()  # Additional data, for SL
-        data.misc["ma_short"] = ta.ema(forex_data.ohlcv["close"], GATE_MA_SHORT_PERIOD).to_numpy()
-        data.misc["ma_long"] = ta.ema(forex_data.ohlcv["close"], GATE_MA_LONG_PERIOD).to_numpy()
+
+        data.vol = forex_data.ohlcv.ta.atr(ATR_PERIOD).to_numpy()
+        data.ma_short = ta.ema(forex_data.ohlcv["close"], GATE_MA_SHORT_PERIOD).to_numpy()
+        data.ma_long = ta.ema(forex_data.ohlcv["close"], GATE_MA_LONG_PERIOD).to_numpy()
+
         return data
 
     def calculate_sl(self, close: float, vol: float):
         return close - SL_VOL_MUL * vol
 
-    def act(self, idx: int, data: PrecomputedData, acc: Account):
-        close = data.prices.close[idx]
-        ma_short = data.misc["ma_short"][idx]
-        ma_long = data.misc["ma_long"][idx]
-        vol = data.misc["vol"][idx]
+    def act(self, data: PrecomputedData, acc: Account):
+        now = data.now
+
+        close = data._forex_data.close[now]
+        ma_short = data.ma_short[now]
+        ma_long = data.ma_long[now]
+        vol = data.vol[now]
 
         order = acc.get_order()
 
-        # ---
         uptrend = (not np.isnan(ma_long)) and ma_short > ma_long
 
         if order:
@@ -45,12 +48,12 @@ class BuyLimitBot(BacktestBot):
                 if self.ttl > 0:
                     self.ttl -= 1
                 if self.ttl == 0:
-                    acc.close_order(idx, close)
+                    acc.close_order(now, close)
             else:
                 new_sl = self.calculate_sl(close, vol)
                 if new_sl > order.sl:
                     order.set_sl(close, new_sl)
         else:
             if uptrend and not np.isnan(vol):
-                acc.open_order(Side.BUY, OrderType.LIMIT, idx, close - 3 * vol, close - 6 * vol)
+                acc.open_order(Side.BUY, OrderType.LIMIT, now, close - 3 * vol, close - 6 * vol)
                 self.ttl = LIMIT_TTL

@@ -7,10 +7,6 @@ class HoldBot(BacktestBot):
     def __init__(self, name="buy_and_hold"):
         self.name = name
 
-    def precompute_data(self, forex_data: ForexData) -> PrecomputedData:
-        data = PrecomputedData(forex_data)
-        return data
-
-    def act(self, idx: int, data: PrecomputedData, acc: Account):
+    def act(self, data: PrecomputedData, acc: Account):
         if not acc.have_order():
-            acc.open_order(Side.BUY, OrderType.POSITION, idx, data.prices.close[idx])
+            acc.open_order(Side.BUY, OrderType.POSITION, data.now, data._forex_data.close[data.now])

@@ -1,14 +1,8 @@
 from abc import ABC, abstractmethod
 
+from alpha_lab.backtest.data import PrecomputedData
 from alpha_lab.backtest.account import Account
 from alpha_lab.utils import ForexData
-
-
-class PrecomputedData:
-    def __init__(self, forex_data: ForexData):
-        self.prices = forex_data
-        self.signals = None
-        self.misc = {}
 
 
 class BacktestBot(ABC):
@@ -25,7 +19,7 @@ class BacktestBot(ABC):
         return data
 
     @abstractmethod
-    def act(self, idx: int, data: PrecomputedData, acc: Account):
+    def act(self, data: PrecomputedData, acc: Account):
         """
         Action after candle[idx] has ended, must not peak beyond i > idx.
         """
