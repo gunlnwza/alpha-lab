@@ -124,10 +124,8 @@ class Simulation:
                     acc.close_position(i, prices.close[i])
             else:
                 if acc.have_limit():
-                    assert not acc.have_position()
                     acc._check_limit(i, prices.high[i], prices.low[i])
                 elif acc.have_position():
-                    assert not acc.have_limit()
                     acc._check_sl(i, prices.high[i], prices.low[i])
                     if acc.have_position():
                         acc._check_tp(i, prices.high[i], prices.low[i])

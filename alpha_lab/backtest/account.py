@@ -1,82 +1,106 @@
-from abc import ABC, abstractmethod
+from enum import Enum
 
 
-class Position(ABC):
-    def __init__(self, idx: int, close: float, sl: float, tp: float | None = None):
+class Side(Enum):
+    BUY = 1
+    SELL = -1
+
+
+class Position:
+    def __init__(
+        self,
+        side: Side,
+        idx: int,
+        entry_price: float,
+        sl: float,
+        tp: float | None = None,
+    ):
+        self.side = side
         self.entry_idx = idx
-        self.entry_price = close
+        self.entry_price = entry_price
         self.sl = sl
         self.tp = tp
 
-        self.exit_idx = None
-        self.exit_price = None
+        self.exit_idx: int | None = None
+        self.exit_price: float | None = None
+        self.pnl: float | None = None
 
-        self.pnl = None  # realized pnl
-
-        self._assert_sl_tp_consistent(close)
+        self._assert_sl_tp_consistent(entry_price)
 
     def __repr__(self):
-        return f"{self.__class__.__name__}({self.entry_idx}, {self.entry_price}, {self.sl}, {self.tp})"
+        return (
+            f"Position(side={self.side.name}, idx={self.entry_idx}, "
+            f"entry={self.entry_price}, sl={self.sl}, tp={self.tp})"
+        )
 
-    @abstractmethod
-    def _pnl(self, close: float) -> float:
-        """Calculate unrealized PnL"""
+    # ---
+    # Invariants
 
-    @abstractmethod
-    def _assert_sl_tp_consistent(self, close: float):
-        """Check that sl, tp, and close are consistent"""
+    def _assert_sl_tp_consistent(self, price: float):
+        if self.side == Side.BUY:
+            if self.sl >= price:
+                raise ValueError("Invalid SL for BUY")
+            if self.tp is not None and self.tp <= price:
+                raise ValueError("Invalid TP for BUY")
+        else:
+            if self.sl <= price:
+                raise ValueError("Invalid SL for SELL")
+            if self.tp is not None and self.tp >= price:
+                raise ValueError("Invalid TP for SELL")
 
     def _assert_is_open(self):
         if self.pnl is not None:
-            raise ValueError("Position is already closed")
+            raise ValueError("Position already closed")
 
-    def set_sl(self, close: float, sl: float):
+    # ---
+    # Money
+
+    def unrealized_pnl(self, price: float) -> float:
+        direction = self.side.value
+        return direction * (price - self.entry_price)
+
+    def close(self, idx: int, price: float) -> float:
+        self._assert_is_open()
+        pnl = self.unrealized_pnl(price)
+        self.pnl = pnl
+        self.exit_idx = idx
+        self.exit_price = price
+        return pnl
+
+    # ---
+    # Modify
+
+    def set_sl(self, price: float, sl: float):
         self._assert_is_open()
         self.sl = sl
-        self._assert_sl_tp_consistent(close)
+        self._assert_sl_tp_consistent(price)
 
-    def set_tp(self, close: float, tp: float):
+    def set_tp(self, price: float, tp: float):
         self._assert_is_open()
         self.tp = tp
-        self._assert_sl_tp_consistent(close)
-
-    def _close(self, idx: int, close: float) -> float:
-        """Close the order"""
-        self._assert_is_open()
-        self.pnl = self._pnl(close)
-
-        self.exit_idx = idx
-        self.exit_price = close
+        self._assert_sl_tp_consistent(price)
 
 
-class BuyPosition(Position):
-    def __init__(self, idx: int, close: float, sl: float, tp: float | None = None):
-        super().__init__(idx, close, sl, tp)
-
-    def _assert_sl_tp_consistent(self, close: float):
-        if self.sl > close:
-            raise ValueError("Invalid SL")
-        if self.tp and self.tp < close:
-            raise ValueError("Invalid TP")
-
-    def _pnl(self, close: float) -> float:
-        return close - self.entry_price
-
-
-class Limit(ABC):
-    def __init__(self, idx: int, entry_price: float, entry_sl: float, entry_tp: float | None = None):
+class Limit:
+    def __init__(
+        self,
+        side: Side,
+        idx: int,
+        entry_price: float,
+        sl: float,
+        tp: float | None = None,
+    ):
+        self.side = side
         self.idx = idx
         self.entry_price = entry_price
-        self.entry_sl = entry_sl
-        self.entry_tp = entry_tp
+        self.sl = sl
+        self.tp = tp
 
     def __repr__(self):
-        return f"{self.__class__.__name__}({self.idx}, {self.entry_price}, {self.entry_sl}. {self.entry_tp})"
-
-
-class BuyLimit(Limit):
-    def __init__(self, idx: int, entry_price: float, entry_sl: float, entry_tp: float | None = None):
-        super().__init__(idx, entry_price, entry_sl, entry_tp)
+        return (
+            f"Limit(side={self.side.name}, idx={self.idx}, "
+            f"entry={self.entry_price}, sl={self.sl}, tp={self.tp})"
+        )
 
 
 class OrderManager:
