@@ -1,5 +1,5 @@
 from alpha_lab.backtest.account import Account, Side, OrderType
-from alpha_lab.backtest.bot import BacktestBotTemplate, PrecomputedData
+from alpha_lab.backtest.bot import BacktestBot, PrecomputedData
 from alpha_lab.utils import ForexData
 
 from pathlib import Path
@@ -12,14 +12,16 @@ from alpha_lab.models.features import get_features  # TODO: smell
 
 # ---
 # Config
+
 GATE_MA_SHORT_PERIOD = 50
 GATE_MA_LONG_PERIOD = 200
 
 ATR_PERIOD = 10
 SL_VOL_MUL = 10
+
 # ---
 
-class LogRegBot(BacktestBotTemplate):
+class LogRegBot(BacktestBot):
     def __init__(self):
         super().__init__(name="logistic_regression")
 
@@ -53,11 +55,11 @@ class LogRegBot(BacktestBotTemplate):
         close = data.prices.close[idx]
         vol = data.misc["vol"][idx]
 
-        # ---
         if order:
-            new_sl = self.calculate_sl(close, vol)
-            if new_sl > order.sl:
-                order.set_sl(close, new_sl)
+            if order.type == OrderType.POSITION:
+                new_sl = self.calculate_sl(close, vol)
+                if new_sl > order.sl:
+                    order.set_sl(close, new_sl)
         else:
             if data.signals[idx] and not np.isnan(vol):
                 sl = self.calculate_sl(close, vol)

@@ -11,8 +11,8 @@ class PrecomputedData:
         self.misc = {}
 
 
-class BacktestBotTemplate(ABC):
-    def __init__(self, name="template"):
+class BacktestBot(ABC):
+    def __init__(self, name="abstract_base_class"):
         self.name = name
 
     def precompute_data(self, forex_data: ForexData) -> PrecomputedData:
