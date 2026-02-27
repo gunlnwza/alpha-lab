@@ -26,7 +26,7 @@ def main():
     try:
         forex_data = ForexData(args.source, args.symbol, args.tf)
     except FileNotFoundError as e:
-        sys.exit(e)
+        sys.exit(f"Cannot load forex data '{args.source}'s {args.symbol.upper()} ({args.tf})'")
 
     try:
         strategy_name = args.strategy  # e.g. "log_reg", "buy_limit"
