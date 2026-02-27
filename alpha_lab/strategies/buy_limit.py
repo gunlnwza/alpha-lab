@@ -1,11 +1,9 @@
-import numpy as np
-import pandas_ta as ta
-
 from alpha_lab.backtest.account import Account
 from alpha_lab.backtest.bot import BacktestBotTemplate, PrecomputedData
 from alpha_lab.utils import ForexData
 
-from alpha_lab.backtest.bot import BacktestBotTemplate, PrecomputedData
+import numpy as np
+import pandas_ta as ta
 
 # ---
 # Config

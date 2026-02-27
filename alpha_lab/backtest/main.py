@@ -25,7 +25,7 @@ def main():
 
     try:
         forex_data = ForexData(args.source, args.symbol, args.tf)
-    except RuntimeError as e:
+    except FileNotFoundError as e:
         sys.exit(e)
 
     try:

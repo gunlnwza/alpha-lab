@@ -30,6 +30,13 @@ class ForexData:
         self.symbol = symbol.upper()
         self.tf = tf
 
+        if self.symbol in ["XAUUSD", "USDJPY"]:
+            self.decimal_places = 2
+            self.tick_size = 0.01
+        else:
+            self.decimal_places = 4
+            self.tick_size = 0.0001
+
         ohlcv_raw = None
         try:
             ohlcv_raw = load_parquet(source, symbol, tf)
@@ -53,13 +60,6 @@ class ForexData:
         self.low = self.ohlcv.low.to_numpy()
         self.close = self.ohlcv.close.to_numpy()
         self.volume = self.ohlcv.volume.to_numpy()
-
-        if self.symbol in ["XAUUSD", "USDJPY"]:
-            self.decimal_places = 2
-            self.tick_size = 0.01
-        else:
-            self.decimal_places = 4
-            self.tick_size = 0.0001
 
     def __len__(self):
         return len(self.ohlcv)

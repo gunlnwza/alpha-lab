@@ -1,13 +1,12 @@
-from pathlib import Path
+from alpha_lab.backtest.account import Account
+from alpha_lab.backtest.bot import BacktestBotTemplate, PrecomputedData
+from alpha_lab.utils import ForexData
 
+from pathlib import Path
 import joblib
 import numpy as np
 import pandas as pd
 import pandas_ta as ta
-
-from alpha_lab.backtest.account import Account
-from alpha_lab.backtest.bot import BacktestBotTemplate, PrecomputedData
-from alpha_lab.utils import ForexData
 
 from alpha_lab.models.features import get_features  # TODO: smell
 
@@ -22,7 +21,7 @@ SL_VOL_MUL = 10
 
 class LogRegBot(BacktestBotTemplate):
     def __init__(self):
-        super().__init__(name="log_reg")
+        super().__init__(name="logistic_regression")
 
     def precompute_data(self, forex_data: ForexData) -> PrecomputedData:
         data = PrecomputedData(forex_data)
