@@ -13,11 +13,23 @@ logging.basicConfig(
 
 
 def main():
-    forex_data = ForexData("twelve_data", "XAUUSD", "5min")
+    parser = argparse.ArgumentParser()
+    parser.add_argument("source")
+    parser.add_argument("symbol")
+    parser.add_argument("tf")
+    parser.add_argument("strat")
+    args = parser.parse_args()
+
+    try:
+        forex_data = ForexData(args.source, args.symbol, args.tf)
+    except RuntimeError as e:
+        sys.exit(e)
+
+    try:
+        bot = BacktestBot()
+    except:
 
     acc = Account()
-    bot = BacktestBot()
-
     sim = Simulation(forex_data, acc, bot)
     sim.run()
     sim.result.report()

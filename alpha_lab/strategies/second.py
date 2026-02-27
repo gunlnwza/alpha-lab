@@ -1,35 +1,11 @@
-from pathlib import Path
-import logging
-from abc import ABC, abstractmethod
-
-import pandas as pd
-import pandas_ta as ta
-import numpy as np
-import joblib
-
-from alpha_lab.models.features import get_features
-from alpha_lab.backtest.account import Account
-from alpha_lab.utils import ForexData
-
-logger = logging.getLogger(__name__)
-
-# TODO: different configs for different assets
-GATE_MA_SHORT_PERIOD = 50
-GATE_MA_LONG_PERIOD = 200
-ATR_PERIOD = 10
-SL_VOL_MUL = 20
-
-
-class PrecomputedData:
-    def __init__(self, forex_data: ForexData):
-        self.prices = forex_data
-        self.signals = None
-        self.misc = {}
+from alpha_lab.backtest.bot import BacktestBotTemplate, PrecomputedData
 
 
 class BacktestBotTemplate:
-    def __init__(self, name="template"):
-        self.name = name
+    def __init__(self):
+        self.pred_full = None
+
+        self.ttl = 0
 
     def _precompute_signals(self, forex_data: ForexData):
         # Two separate models
@@ -50,7 +26,6 @@ class BacktestBotTemplate:
         assert signals.index.to_list() == forex_data.ohlcv.index.to_list()
         return signals.to_numpy()
 
-    @abstractmethod
     def precompute_data(self, forex_data: ForexData) -> PrecomputedData:
         """
         Compute time-index aligned signals
@@ -66,7 +41,6 @@ class BacktestBotTemplate:
         if new_sl > position.sl:
             position.set_sl(close, new_sl)
 
-    @abstractmethod
     def act(self, idx: int, data: PrecomputedData, acc: Account):
         limit = acc.get_limit()
         position = acc.get_position()
@@ -92,3 +66,4 @@ class BacktestBotTemplate:
             if not np.isnan(vol):
                 acc.open_limit(idx, close - 2 * vol, close - 4 * vol)
                 self.ttl = 10  # limit is valid for only 10 bars
+
