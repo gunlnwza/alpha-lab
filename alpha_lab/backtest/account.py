@@ -87,19 +87,24 @@ class Account:
     def get_order(self) -> Limit | Position | None:
         return self.engine.get_order()
 
-    def open_order(
-        self,
-        side: Side,
-        order_type: OrderType,
-        idx: int,
-        entry_price: float,
-        sl: float | None = None,
-        tp: float | None = None
-    ):  # TODO: group idx..tp as struct?
-        if order_type == OrderType.LIMIT:
-            self.engine.open_limit(side, idx, entry_price, sl, tp)
-        elif order_type == OrderType.POSITION:
-            self.engine.open_position(side, idx, entry_price, sl, tp)
+    def open_limit(
+            self,
+            side: Side,
+            bar: Bar,
+            entry_price: float,
+            sl: float | None = None,
+            tp: float | None = None
+        ):
+        self.engine.open_limit(side, bar.idx, entry_price, sl, tp)
+
+    def open_position(
+            self,
+            side: Side,
+            bar: Bar,
+            sl: float | None = None,
+            tp: float | None = None
+        ):
+        self.engine.open_position(side, bar.idx, bar.close, sl, tp)
 
     def close_order(self, bar: Bar):
         pnl = self.engine.close_order(bar)

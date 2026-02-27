@@ -24,14 +24,14 @@ class MaCrossBot(BacktestBot):
         order = acc.get_order()
 
         if data.ma_short[now] > data.ma_long[now]:
-            if acc.have_order():
+            if order:
                 if order.side == Side.SELL:
                     acc.close_order(bar)
             else:
-                acc.open_order(Side.BUY, OrderType.POSITION, now, bar.close)
+                acc.open_position(Side.BUY, bar)
         else:
-            if acc.have_order():
+            if order:
                 if order.side == Side.BUY:
                     acc.close_order(bar)
             else:
-                acc.open_order(Side.SELL, OrderType.POSITION, now, bar.close)
+                acc.open_position(Side.SELL, bar)

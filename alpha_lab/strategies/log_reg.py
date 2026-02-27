@@ -86,23 +86,20 @@ class LogRegBot(BacktestBot):
         data.signals = signals.to_numpy()
 
         return data
-    
-    def calculate_sl(self, close: float, vol: float):
-        return close - SL_VOL_MUL * vol
 
     def act(self, data: PrecomputedData, acc: Account):
-        order = acc.get_order()
         bar = data.bar
         now = data.now
+
+        order = acc.get_order()
         signal = data.signals[now]
         vol = data.vol[now]
 
         if order:
-            if order.type == OrderType.POSITION:
-                new_sl = self.calculate_sl(bar.close, vol)
-                if new_sl > order.sl:
-                    order.set_sl(bar.close, new_sl)
+            new_sl = bar.close - SL_VOL_MUL * vol
+            if new_sl > order.sl:
+                order.set_sl(new_sl, bar)
         else:
             if signal and not np.isnan(vol):
-                sl = self.calculate_sl(bar.close, vol)
-                acc.open_order(Side.BUY, OrderType.POSITION, now, bar.close, sl)
+                sl = bar.close - SL_VOL_MUL * vol
+                acc.open_position(Side.BUY, bar, sl)

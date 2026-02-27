@@ -65,15 +65,17 @@ class Order(ABC):
     # ---
     # Setter
 
-    def set_sl(self, price: float, sl: float):
+    def set_sl(self, sl: float, bar: Bar):
+        """Set SL safely, comparing with `bar.close`"""
         self._assert_is_open()
         self.sl = sl
-        self._assert_sl_tp_consistent(price)
+        self._assert_sl_tp_consistent(bar.close)
 
-    def set_tp(self, price: float, tp: float):
+    def set_tp(self, tp: float, bar: Bar):
+        """Set TP safely, comparing with `bar.close`"""
         self._assert_is_open()
         self.tp = tp
-        self._assert_sl_tp_consistent(price)
+        self._assert_sl_tp_consistent(bar.close)
 
     # ---
     # Getter

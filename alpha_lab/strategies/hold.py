@@ -9,4 +9,4 @@ class HoldBot(BacktestBot):
 
     def act(self, data: PrecomputedData, acc: Account):
         if not acc.have_order():
-            acc.open_order(Side.BUY, OrderType.POSITION, data.now, data._forex_data.close[data.now])
+            acc.open_position(Side.BUY, data.bar)

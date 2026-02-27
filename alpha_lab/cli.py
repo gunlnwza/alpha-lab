@@ -1,4 +1,5 @@
 import sys
+import time
 import logging
 import argparse
 import importlib
@@ -39,7 +40,12 @@ def main():
 
     acc = Account()
     sim = Simulation(forex_data, acc, bot)
+
+    time_start = time.perf_counter()
     sim.run()
+    time_end = time.perf_counter()
+    print(f"Simulation time: {time_end - time_start:.3f}s")
+
     sim.result.report()
     sim.result.visualize()
 

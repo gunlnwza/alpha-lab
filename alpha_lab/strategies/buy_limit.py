@@ -17,7 +17,7 @@ SL_VOL_MUL = 10
 class BuyLimitBot(BacktestBot):
     def __init__(self):
         super().__init__("buy_limit")
-        self.ttl = 0
+        self.limit_ttl = 0
 
     def precompute_data(self, forex_data: ForexData) -> PrecomputedData:
         data = PrecomputedData(forex_data)
@@ -28,32 +28,27 @@ class BuyLimitBot(BacktestBot):
 
         return data
 
-    def calculate_sl(self, close: float, vol: float):
-        return close - SL_VOL_MUL * vol
-
     def act(self, data: PrecomputedData, acc: Account):
+        bar = data.bar
         now = data.now
 
-        close = data._forex_data.close[now]
         ma_short = data.ma_short[now]
         ma_long = data.ma_long[now]
         vol = data.vol[now]
-
         order = acc.get_order()
 
         uptrend = (not np.isnan(ma_long)) and ma_short > ma_long
 
         if order:
             if order.type == OrderType.LIMIT:
-                if self.ttl > 0:
-                    self.ttl -= 1
-                if self.ttl == 0:
-                    acc.close_order(now, close)
+                self.limit_ttl -= 1
+                if self.limit_ttl == 0:
+                    acc.close_order(bar)
             else:
-                new_sl = self.calculate_sl(close, vol)
+                new_sl = bar.close - SL_VOL_MUL * vol
                 if new_sl > order.sl:
-                    order.set_sl(close, new_sl)
+                    order.set_sl(new_sl, bar)
         else:
             if uptrend and not np.isnan(vol):
-                acc.open_order(Side.BUY, OrderType.LIMIT, now, close - 3 * vol, close - 6 * vol)
-                self.ttl = LIMIT_TTL
+                acc.open_limit(Side.BUY, bar, bar.close - 3 * vol, bar.close - 6 * vol)
+                self.limit_ttl = LIMIT_TTL
