@@ -1,4 +1,5 @@
 from enum import Enum
+from abc import ABC, abstractmethod
 
 
 class Side(Enum):
@@ -7,14 +8,11 @@ class Side(Enum):
 
 
 class OrderType(Enum):
-    LIMIT = "limit",
+    LIMIT = "limit"
     POSITION = "position"
 
 
-class Order:  # TODO: do proper inheritance
-    pass
-
-class Position(Order):
+class Order(ABC):
     def __init__(
         self,
         side: Side,
@@ -37,7 +35,7 @@ class Position(Order):
 
     def __repr__(self):
         return (
-            f"Position(side={self.side.name}, idx={self.entry_idx}, "
+            f"{self.__class__.__name__}(side={self.side.name}, idx={self.entry_idx}, "
             f"entry={self.entry_price}, sl={self.sl}, tp={self.tp})"
         )
 
@@ -58,21 +56,22 @@ class Position(Order):
 
     def _assert_is_open(self):
         if self.pnl is not None:
-            raise ValueError("Position already closed")
+            raise ValueError(f"{self.__class__.__name__} already closed")
 
     # ---
     # Money
 
+    @abstractmethod
     def unrealized_pnl(self, price: float) -> float:
-        direction = self.side.value
-        return direction * (price - self.entry_price)
+        self._assert_is_open()  # if already closed, use self.pnl field instead
+        return 0.0
 
     def close(self, idx: int, price: float) -> float:
         self._assert_is_open()
         pnl = self.unrealized_pnl(price)
         self.pnl = pnl
         self.exit_idx = idx
-        self.exit_price = price
+        self.exit_price = price  # It's valid to say "I closed a buy limit at this exit time and price, making 0 pnl"
         return pnl
 
     # ---
@@ -89,6 +88,23 @@ class Position(Order):
         self._assert_sl_tp_consistent(price)
 
 
+class Position(Order):
+    def __init__(
+        self,
+        side: Side,
+        idx: int,
+        entry_price: float,
+        sl: float,
+        tp: float | None = None,
+    ):
+        super().__init__(side, idx, entry_price, sl, tp)
+
+    def unrealized_pnl(self, price: float) -> float:
+        self._assert_is_open()
+        direction = self.side.value
+        return direction * (price - self.entry_price)
+
+
 class Limit(Order):
     def __init__(
         self,
@@ -98,61 +114,33 @@ class Limit(Order):
         sl: float,
         tp: float | None = None,
     ):
-        self.side = side
-        self.idx = idx
-        self.entry_price = entry_price
-        self.sl = sl
-        self.tp = tp
-        self._assert_sl_tp_consistent(entry_price)
+        super().__init__(side, idx, entry_price, sl, tp)
 
-    def _assert_sl_tp_consistent(self, price: float):
-        if self.side == Side.BUY:
-            if self.sl >= price:
-                raise ValueError("Invalid SL for BUY")
-            if self.tp is not None and self.tp <= price:
-                raise ValueError("Invalid TP for BUY")
-        else:
-            if self.sl <= price:
-                raise ValueError("Invalid SL for SELL")
-            if self.tp is not None and self.tp >= price:
-                raise ValueError("Invalid TP for SELL")
-
-    def __repr__(self):
-        return (
-            f"Limit(side={self.side.name}, idx={self.idx}, "
-            f"entry={self.entry_price}, sl={self.sl}, tp={self.tp})"
-        )
+    def unrealized_pnl(self, price: float) -> float:
+        return super().unrealized_pnl(price)
 
 
 class PositionEngine:
     def __init__(self):
         self.closed_limits = []
-        self.limit: Limit | None = None
-
         self.closed_positions = []
-        self.position: Position | None = None
+        self.order: Order | None = None
     
     def have_order(self):
-        return self.limit or self.position
+        return self.order is not None
 
     def get_order(self):
-        if self.limit:
-            assert self.position is None
-            return self.limit
-        elif self.position:
-            assert self.limit is None
-            return self.position
-        return None
+        return self.order
 
     def open_limit(self, side: Side, idx: int, entry_price: float, sl: float, tp: float):
         if self.have_order():
             raise ValueError("Already have order, cannot open new limit")
-        self.limit = Limit(side, idx, entry_price, sl, tp)
+        self.order = Limit(side, idx, entry_price, sl, tp)
 
     def open_position(self, side: Side, idx: int, entry_price: float, sl: float, tp: float):
         if self.have_order():
             raise ValueError("Already have order, cannot open new position")
-        self.position = Position(side, idx, entry_price, sl, tp)
+        self.order = Position(side, idx, entry_price, sl, tp)
 
     def close_order(self, idx: int, close: float) -> float:
         """Return PnL"""
@@ -160,23 +148,21 @@ class PositionEngine:
         if order is None:
             raise ValueError("No open order to close")
 
+        pnl = self.order.close(idx, close)
+        self.order = None
         if isinstance(order, Limit):
-            pnl = 0.0
-            self.closed_limits.append(self.limit)
-            self.limit = None
+            self.closed_limits.append(order)
         elif isinstance(order, Position):
-            pnl = self.position.close(idx, close)
-            self.closed_positions.append(self.position)
-            self.position = None
+            self.closed_positions.append(order)
         else:
             raise ValueError("Unknown order type")
 
         return pnl
 
     def unrealized_pnl(self, close: float) -> float:
-        if self.position is None:
+        if self.order is None:
             return 0.0
-        return self.position.unrealized_pnl(close)
+        return self.order.unrealized_pnl(close)
     
     def process_bar(self, idx: int, high: float, low: float, close: float) -> float:
         """Return PnL"""
