@@ -27,8 +27,8 @@ class Order(ABC):
         self.side = side
         self.entry_idx = idx
         self.entry_price = entry_price
-        self.sl = sl
-        self.tp = tp
+        self._sl = sl
+        self._tp = tp
 
         self.exit_idx: int | None = None
         self.exit_price: float | None = None
@@ -48,15 +48,15 @@ class Order(ABC):
 
     def _assert_sl_tp_consistent(self, price: float):
         if self.side == Side.BUY:
-            if self.sl and self.sl >= price:
-                raise ValueError("Invalid SL for BUY")
-            if self.tp is not None and self.tp <= price:
-                raise ValueError("Invalid TP for BUY")
+            if self._sl and self._sl > price:
+                raise ValueError(f"Invalid SL for BUY (price={price:.4f}, sl={self._sl:.4f})")
+            if self._tp is not None and self._tp < price:
+                raise ValueError(f"Invalid TP for BUY (price={price:.4f}, tp={self._tp:.4f})")
         else:
-            if self.sl and self.sl <= price:
-                raise ValueError("Invalid SL for SELL")
-            if self.tp is not None and self.tp >= price:
-                raise ValueError("Invalid TP for SELL")
+            if self._sl and self._sl < price:
+                raise ValueError(f"Invalid SL for SELL (price={price:.4f}, sl={self._sl:.4f})")
+            if self._tp is not None and self._tp > price:
+                raise ValueError(f"Invalid TP for SELL (price={price:.4f}, tp={self._tp:.4f})")
 
     def _assert_is_open(self):
         if self.is_closed():
@@ -68,13 +68,13 @@ class Order(ABC):
     def set_sl(self, sl: float, bar: Bar):
         """Set SL safely, comparing with `bar.close`"""
         self._assert_is_open()
-        self.sl = sl
+        self._sl = sl
         self._assert_sl_tp_consistent(bar.close)
 
     def set_tp(self, tp: float, bar: Bar):
         """Set TP safely, comparing with `bar.close`"""
         self._assert_is_open()
-        self.tp = tp
+        self._tp = tp
         self._assert_sl_tp_consistent(bar.close)
 
     # ---
@@ -85,6 +85,12 @@ class Order(ABC):
     
     def is_closed(self):
         return self.pnl is not None
+    
+    def get_sl(self):
+        return self._sl
+    
+    def get_tp(self):
+        return self._tp
 
     # ---
     # Money
@@ -136,7 +142,7 @@ class Limit(Order):
             or (self.side == Side.SELL and bar.high > self.entry_price)
         ):
             self.close(bar.idx, bar.close)
-            new_order = Position(self.side, bar.idx, self.entry_price, self.sl, self.tp)
+            new_order = Position(self.side, bar.idx, self.entry_price, self._sl, self._tp)
 
         return 0.0, new_order
 
@@ -163,14 +169,14 @@ class Position(Order):
         pnl = 0.0
 
         if self.side == Side.BUY:
-            if self.sl and bar.low < self.sl:
-                pnl = self.close(bar.idx, self.sl)
-            elif self.tp and bar.high > self.tp:
-                pnl = self.close(bar.idx, self.tp)
+            if self._sl and bar.low < self._sl:
+                pnl = self.close(bar.idx, self._sl)
+            elif self._tp and bar.high > self._tp:
+                pnl = self.close(bar.idx, self._tp)
         else:
-            if self.sl and bar.high > self.sl:
-                pnl = self.close(bar.idx, self.sl)
-            elif self.tp and bar.low < self.tp:
-                pnl = self.close(bar.idx, self.tp)
+            if self._sl and bar.high > self._sl:
+                pnl = self.close(bar.idx, self._sl)
+            elif self._tp and bar.low < self._tp:
+                pnl = self.close(bar.idx, self._tp)
 
         return pnl, None

@@ -70,6 +70,10 @@ class OrderEngine:
             self._append_closed_order(current_order)
             self.order = new_order  # may be None or a new Position
 
+            # in case of a new Position, process again: edge case where price go down so much, buy limit and sl both trigger
+            if self.order:
+                pnl = self.process_bar(bar)  # this pnl is fresh, and actually from a Position
+
         return pnl
 
 
