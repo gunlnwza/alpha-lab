@@ -116,8 +116,8 @@ class SimulationResult:
         axes[0].legend()
 
         # axes[1]
-        axes[1].plot(self._equity_points, label="Equity (point)", color="C0")
-        axes[1].plot(self._balance_points, label="Balance (point)", color="C2")
+        axes[1].plot(self._equity_points, label="Equity (point)", color="C0", linewidth=1)  # styled the same way as `close`
+        axes[1].plot(self._balance_points, label="Balance (point)", color="C2", linewidth=2)
 
         axes[1].set_xlabel("Time")
         axes[1].set_ylabel("Point Diff")
