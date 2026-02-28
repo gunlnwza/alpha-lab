@@ -1,3 +1,5 @@
+import time
+
 from alpha_lab.utils import ForexData
 from alpha_lab.backtest.account import Account
 from alpha_lab.backtest.bot import BacktestBot
@@ -12,6 +14,8 @@ class Simulation:
         self.result = None
 
     def run(self):
+        time_start = time.perf_counter()
+
         data = self.bot.precompute_data(self.forex_data)
         acc = Account(data)
         bot = self.bot
@@ -26,4 +30,7 @@ class Simulation:
             acc.close_order()
         acc._update_money()
 
-        self.result = SimulationResult(data, acc, bot)
+        time_end = time.perf_counter()
+        sim_time = time_end - time_start
+
+        self.result = SimulationResult(data, acc, bot, sim_time)

@@ -16,10 +16,11 @@ console = Console()
 
 
 class SimulationResult:
-    def __init__(self, data: PrecomputedData, acc: Account, bot: BacktestBot):
+    def __init__(self, data: PrecomputedData, acc: Account, bot: BacktestBot, sim_time: float):
         self.data = data
         self.acc = acc
         self.bot = bot
+        self.sim_time = sim_time
 
         self.forex_data = data.forex_data
         self.closed_positions = self.acc.engine.closed_positions
@@ -67,25 +68,36 @@ class SimulationResult:
         }
 
     def _print_table(self):
+        header_table = Table(box=box.SQUARE, show_header=False)
+        header_table.add_column("Key", justify="left")
+        header_table.add_column("Value", justify="left")
+
+        header_table.add_row("Strategy", self.bot.name)
+        header_table.add_row("Simulation time", f"{self.sim_time:.3f}s")
+
         def init_table(title) -> Table:
-            t = Table(title=title, box=box.SIMPLE_HEAVY)
+            t = Table(title=title, box=box.SQUARE)
             t.add_column("Metric", justify="left")
             t.add_column("Value", justify="right")
             return t
 
         def add_rows(table: Table, rows: list[str]):
             for row in rows:
-                table.add_row(row, self.metrics[row])
+                if row:
+                    table.add_row(row, self.metrics[row])
+                else:
+                    table.add_row("", "")
 
         t1 = init_table("Trades")
-        add_rows(t1, ["Win", "Loss", "Trades", "Win Rate"])
+        add_rows(t1, ["Win", "Loss", "Trades", "Win Rate", ""])
 
         t2 = init_table("Points")
         add_rows(t2, ["+Point", "-Point", "Total Point", "Max Balance DD", "Max Equity DD"])
 
         t3 = init_table("Averages")
-        add_rows(t3, ["Average +Point", "Average -Point", "Profit Factor"])
+        add_rows(t3, ["Average +Point", "Average -Point", "Profit Factor", "", ""])
 
+        console.print(header_table)
         console.print(Columns([t1, t2, t3]))
 
     def report(self):

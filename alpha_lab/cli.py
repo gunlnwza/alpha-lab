@@ -1,5 +1,4 @@
 import sys
-import time
 import logging
 import argparse
 import importlib
@@ -39,13 +38,9 @@ def main():
         sys.exit(f"Cannot load strategy '{args.strategy}'")
 
     sim = Simulation(forex_data, bot)
-
-    time_start = time.perf_counter()
     sim.run()
-    time_end = time.perf_counter()
 
     sim.result.report()
-    print(f"Simulation time: {time_end - time_start:.3f}s")
     if not args.no_visual:
         sim.result.visualize()
 
