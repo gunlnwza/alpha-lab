@@ -2,6 +2,7 @@ from alpha_lab.backtest.data import Bar
 from alpha_lab.backtest.account import Account, Side, OrderType
 from alpha_lab.backtest.bot import BacktestBot, PrecomputedData
 from alpha_lab.utils import ForexData
+import pandas_ta as ta
 
 
 class VbcBot(BacktestBot):
@@ -65,12 +66,15 @@ Context: After strong buying pressure, look for distribution + reversal attempt.
         super().__init__("vbc")
 
         self.bars: list[Bar] = []
-        self.BARS = 3
+        self.BARS = 20
 
     def precompute_data(self, forex_data: ForexData) -> PrecomputedData:
         self.tens = pow(10, forex_data.decimal_places)
         self.tick_size = forex_data.tick_size
-        return super().precompute_data(forex_data)
+
+        data = PrecomputedData(forex_data)
+        data.atr = forex_data.ohlcv.ta.atr(20).to_numpy()
+        return data
 
     def tick_to_point(self, tick: float):
         return tick * self.tens
@@ -80,18 +84,20 @@ Context: After strong buying pressure, look for distribution + reversal attempt.
 
     def act(self, data: PrecomputedData, acc: Account):
         bar = data.bar
-
         self.bars.insert(0, bar)  # MT4 indexing convention, 0 is the current bar, 1 is the previous bar
         if len(self.bars) < self.BARS:
             return
-        if len(self.bars) > self.BARS:
-            self.bars.pop()
+        # if len(self.bars) > self.BARS:
+            # self.bars.pop()
+
+        now = data.now
+        atr = data.atr[now]
 
         # Indexing:
         # bars[2] = impulse candle (volume candle)
         # bars[1] = break candle
         # bars[0] = confirm candle
-        bar_v = self.bars[2]
+        bar_volume = self.bars[2]
         bar_break = self.bars[1]
         bar_confirm = self.bars[0]
 
@@ -101,13 +107,17 @@ Context: After strong buying pressure, look for distribution + reversal attempt.
                 acc.close_order(bar_confirm)
             return
 
-        body_v = self.tick_to_point(bar_v.close - bar_v.open)
+        body_v = self.tick_to_point(bar_volume.close - bar_volume.open)
         body_break = self.tick_to_point(bar_break.close - bar_break.open)
+
+        large_dist = 3 * atr
+        sl_dist = 1 * atr
+        tp_dist = 0.9 * atr
 
         # =========================
         # BUY SIDE
         # =========================
-        if body_v <= -600:  # large red impulse
+        if body_v <= -large_dist:  # large red impulse
 
             # break candle must be green and 25-50% of impulse body
             if body_break > 0 and 0.25 <= abs(body_break / body_v) <= 0.5:
@@ -115,12 +125,12 @@ Context: After strong buying pressure, look for distribution + reversal attempt.
                 # confirm must dip into break body and hold above impulse low
                 if (
                     bar_confirm.low <= bar_break.close
-                    and bar_confirm.low > bar_v.low
+                    and bar_confirm.low > bar_volume.low
                 ):
-                    risk_points = self.tick_to_point(bar_confirm.close - bar_v.low)
+                    risk_points = self.tick_to_point(bar_confirm.close - bar_volume.low)
                     if risk_points > 0:
-                        sl_price = bar_v.low
-                        tp_price = bar_confirm.close + self.point_to_tick(int(risk_points * 1.5))
+                        sl_price = min(bar_volume.close, bar_confirm.close) - sl_dist
+                        tp_price = max(bar_volume.open, bar_confirm.close) + tp_dist
 
                         acc.open_limit(
                             Side.BUY,
@@ -134,7 +144,7 @@ Context: After strong buying pressure, look for distribution + reversal attempt.
         # =========================
         # SELL SIDE (reversed logic)
         # =========================
-        if body_v >= 600:  # large green impulse
+        if body_v >= large_dist:  # large green impulse
 
             # break candle must be red and 25-50% of impulse body
             if body_break < 0 and 0.25 <= abs(body_break / body_v) <= 0.5:
@@ -142,12 +152,12 @@ Context: After strong buying pressure, look for distribution + reversal attempt.
                 # confirm must rally into break body and hold below impulse high
                 if (
                     bar_confirm.high >= bar_break.close
-                    and bar_confirm.high < bar_v.high
+                    and bar_confirm.high < bar_volume.high
                 ):
-                    risk_points = self.tick_to_point(bar_v.high - bar_confirm.close)
+                    risk_points = self.tick_to_point(bar_volume.high - bar_confirm.close)
                     if risk_points > 0:
-                        sl_price = bar_v.high
-                        tp_price = bar_confirm.close - self.point_to_tick(int(risk_points * 1.5))
+                        sl_price = max(bar_volume.close, bar_confirm.close) + sl_dist
+                        tp_price = min(bar_volume.open, bar_confirm.close) - tp_dist
 
                         acc.open_limit(
                             Side.SELL,
