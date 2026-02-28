@@ -1,4 +1,5 @@
 ipykernel
+pytest
 
 pandas
 pandas-ta
