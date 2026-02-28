@@ -22,12 +22,12 @@ class SimulationResult:
         self.bot = bot
 
         self.forex_data = data.forex_data
-        self.index = self.forex_data.ohlcv.index
         self.closed_positions = self.acc.engine.closed_positions
 
-        self.tens = pow(10, self.forex_data.decimal_places)
-        self.balance_points = pd.Series(self.acc.balance, index=self.index) * self.tens
-        self.equity_points = pd.Series(self.acc.equity, index=self.index) * self.tens
+        self._index = self.forex_data.ohlcv.index
+        self._tens = pow(10, self.forex_data.decimal_places)
+        self._equity_points = pd.Series(self.acc.equity, index=self._index) * self._tens  # is private because `acc` already have it--
+        self._balance_points = pd.Series(self.acc.balance, index=self._index) * self._tens  # --for computing metrics and plotting only
 
         self.metrics = self._compute_metrics()
 
@@ -39,8 +39,8 @@ class SimulationResult:
         win_rate = f"{win / trades:.2f}" if trades > 0 else "inf"
 
         # PnL
-        pos_point = round(sum(p.pnl for p in self.closed_positions if p.pnl > 0) * self.tens)
-        neg_point = round(sum(-p.pnl for p in self.closed_positions if p.pnl < 0) * self.tens)
+        pos_point = round(sum(p.pnl for p in self.closed_positions if p.pnl > 0) * self._tens)
+        neg_point = round(sum(-p.pnl for p in self.closed_positions if p.pnl < 0) * self._tens)
         total_point = pos_point - neg_point
 
         avg_pos_point = f"{pos_point / win:.0f}" if win > 0 else "inf"
@@ -48,8 +48,8 @@ class SimulationResult:
         profit_factor = f"{pos_point / neg_point:.2f}" if neg_point != 0 else "inf"
 
         # Drawdown
-        max_balance_dd = round(-(self.balance_points.cummax() - self.balance_points).max())
-        max_equity_dd = round(-(self.equity_points.cummax() - self.equity_points).max())
+        max_balance_dd = round(-(self._balance_points.cummax() - self._balance_points).max())
+        max_equity_dd = round(-(self._equity_points.cummax() - self._equity_points).max())
 
         return {
             "Win": str(win),
@@ -91,32 +91,37 @@ class SimulationResult:
     def report(self):
         self._print_table()
 
+    def _plot_trades(self, ax):
+        for o in self.closed_positions:
+            ax.plot(
+                [self._index[o.entry_idx], self._index[o.exit_idx]],
+                [o.entry_price, o.exit_price],
+                color="green" if o.pnl >= 0 else "red",
+                alpha=0.7,
+                linewidth=6,
+                solid_capstyle="round"
+            )
+
     def visualize(self):
         fig, axes = plt.subplots(2, 1, height_ratios=[2, 1], sharex=True, figsize=(12, 6))
 
         # axes[0]
+        axes[0].plot(self.forex_data.ohlcv["close"], label=self.forex_data.symbol, linewidth=1)
+        self._plot_trades(axes[0])
+
         axes[0].set_title(f"Simulation Result | {self.forex_data} | {self.bot.name}")
         axes[0].set_ylabel("Price")
         axes[0].yaxis.set_major_formatter(mticker.FormatStrFormatter(f'%.{self.forex_data.decimal_places}f'))
         axes[0].grid(alpha=0.3)
-
-        axes[0].plot(self.forex_data.ohlcv["close"], label=self.forex_data.symbol, linewidth=1)
-        for order in self.closed_positions:
-            c = "green" if order.pnl >= 0 else "red"
-            axes[0].plot(
-                [self.index[order.entry_idx], self.index[order.exit_idx]],
-                [order.entry_price, order.exit_price],
-                color=c, lw=5
-            )
         axes[0].legend()
 
         # axes[1]
+        axes[1].plot(self._equity_points, label="Equity (point)", color="C0")
+        axes[1].plot(self._balance_points, label="Balance (point)", color="C2")
+
         axes[1].set_xlabel("Time")
         axes[1].set_ylabel("Point Diff")
         axes[1].grid(alpha=0.3)
-
-        axes[1].plot(self.balance_points, label="Balance (point)")
-        axes[1].plot(self.equity_points, label="Equity (point)")
         axes[1].legend()
 
         # Render

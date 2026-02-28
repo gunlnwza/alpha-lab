@@ -45,9 +45,9 @@ def main():
     time_start = time.perf_counter()
     sim.run()
     time_end = time.perf_counter()
-    print(f"Simulation time: {time_end - time_start:.3f}s")
 
     sim.result.report()
+    print(f"Simulation time: {time_end - time_start:.3f}s")
     if not args.no_visual:
         sim.result.visualize()
 
