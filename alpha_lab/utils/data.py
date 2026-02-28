@@ -55,3 +55,29 @@ class ForexData:
 
     def __repr__(self):
         return f"ForexData({self.source}, {self.symbol}, {self.tf})"
+
+    # -------- slicing --------
+
+    def __getitem__(self, key):
+        # Row slicing only (int, slice, or boolean/ndarray mask)
+        if isinstance(key, (int, slice)) or hasattr(key, "__array__"):
+            obj = object.__new__(ForexData)
+            obj.source = self.source
+            obj.symbol = self.symbol
+            obj.tf = self.tf
+            obj.decimal_places = self.decimal_places
+            obj.tick_size = self.tick_size
+
+            # Slice DataFrame
+            obj.ohlcv = self.ohlcv.iloc[key]
+
+            # Recreate numpy views
+            obj.open = obj.ohlcv.open.to_numpy()
+            obj.high = obj.ohlcv.high.to_numpy()
+            obj.low = obj.ohlcv.low.to_numpy()
+            obj.close = obj.ohlcv.close.to_numpy()
+            obj.volume = obj.ohlcv.volume.to_numpy()
+
+            return obj
+
+        raise TypeError("ForexData only supports row slicing.")
