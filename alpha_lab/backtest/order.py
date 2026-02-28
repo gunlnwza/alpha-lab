@@ -91,6 +91,14 @@ class Order(ABC):
     
     def get_tp(self):
         return self._tp
+    
+    @property
+    def sl(self):
+        return self._sl
+    
+    @property
+    def tp(self):
+        return self._tp
 
     # ---
     # Money

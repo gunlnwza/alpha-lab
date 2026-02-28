@@ -4,9 +4,8 @@ import logging
 import argparse
 import importlib
 
-from alpha_lab.backtest.simulation import Simulation
-from alpha_lab.backtest.account import Account
 from alpha_lab.utils import ForexData
+from alpha_lab.backtest.simulation import Simulation
 
 logging.basicConfig(
     filename="app.log",
@@ -39,8 +38,7 @@ def main():
     except (ModuleNotFoundError, AttributeError) as e:
         sys.exit(f"Cannot load strategy '{args.strategy}'")
 
-    acc = Account()
-    sim = Simulation(forex_data, acc, bot)
+    sim = Simulation(forex_data, bot)
 
     time_start = time.perf_counter()
     sim.run()

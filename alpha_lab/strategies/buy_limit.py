@@ -29,12 +29,12 @@ class BuyLimitBot(BacktestBot):
         return data
 
     def act(self, data: PrecomputedData, acc: Account):
-        bar = data.bar
         now = data.now
-
         ma_short = data.ma_short[now]
         ma_long = data.ma_long[now]
         vol = data.vol[now]
+        close = data.forex_data.close[now]
+
         order = acc.get_order()
 
         uptrend = (not np.isnan(ma_long)) and ma_short > ma_long
@@ -43,12 +43,12 @@ class BuyLimitBot(BacktestBot):
             if order.type == OrderType.LIMIT:
                 self.limit_ttl -= 1
                 if self.limit_ttl == 0:
-                    acc.close_order(bar)
+                    acc.close_order()
             else:
-                new_sl = bar.close - SL_VOL_MUL * vol
+                new_sl = close - SL_VOL_MUL * vol
                 if new_sl > order.sl:
-                    order.set_sl(new_sl, bar)
+                    acc.set_sl(new_sl)
         else:
             if uptrend and not np.isnan(vol):
-                acc.open_limit(Side.BUY, bar, bar.close - 3 * vol, bar.close - 6 * vol)
+                acc.open_limit(Side.BUY, close - 3 * vol, close - 6 * vol)
                 self.limit_ttl = LIMIT_TTL

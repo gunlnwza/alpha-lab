@@ -110,7 +110,7 @@ Context: After strong buying pressure, look for distribution + reversal attempt.
 
         if order:
             if order.type == OrderType.LIMIT:
-                acc.close_order(bar_confirm)
+                acc.close_order()
             return
         
         body_v = self.tick_to_point(bar_volume.close - bar_volume.open)
@@ -140,7 +140,6 @@ Context: After strong buying pressure, look for distribution + reversal attempt.
 
                         acc.open_limit(
                             Side.BUY,
-                            bar_confirm,
                             bar_confirm.close,
                             sl_price,
                             tp_price,
@@ -167,7 +166,6 @@ Context: After strong buying pressure, look for distribution + reversal attempt.
 
                         acc.open_limit(
                             Side.SELL,
-                            bar_confirm,
                             bar_confirm.close,
                             sl_price,
                             tp_price,

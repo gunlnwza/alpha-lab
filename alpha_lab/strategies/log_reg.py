@@ -88,18 +88,18 @@ class LogRegBot(BacktestBot):
         return data
 
     def act(self, data: PrecomputedData, acc: Account):
-        bar = data.bar
         now = data.now
-
-        order = acc.get_order()
         signal = data.signals[now]
         vol = data.vol[now]
+        close = data.forex_data.close[now]
+
+        order = acc.get_order()
 
         if order:
-            new_sl = bar.close - SL_VOL_MUL * vol
+            new_sl = close - SL_VOL_MUL * vol
             if new_sl > order.sl:
-                order.set_sl(new_sl, bar)
+                acc.set_sl(new_sl)
         else:
             if signal and not np.isnan(vol):
-                sl = bar.close - SL_VOL_MUL * vol
-                acc.open_position(Side.BUY, bar, sl)
+                sl = close - SL_VOL_MUL * vol
+                acc.open_position(Side.BUY, sl)

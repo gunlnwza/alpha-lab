@@ -1,4 +1,4 @@
-from alpha_lab.backtest.data import Bar
+from alpha_lab.backtest.data import Bar, PrecomputedData
 from alpha_lab.backtest.order import Side, OrderType, Order, Limit, Position
 
 
@@ -78,7 +78,9 @@ class OrderEngine:
 
 
 class Account:
-    def __init__(self):
+    def __init__(self, data: PrecomputedData):
+        self._data = data
+
         self.engine = OrderEngine()
 
         self.equity = []
@@ -94,32 +96,39 @@ class Account:
     def open_limit(
             self,
             side: Side,
-            bar: Bar,
             entry_price: float,
             sl: float | None = None,
             tp: float | None = None
         ):
+        bar = self._data.bar
         self.engine.open_limit(side, bar.idx, entry_price, sl, tp)
 
     def open_position(
             self,
             side: Side,
-            bar: Bar,
             sl: float | None = None,
             tp: float | None = None
         ):
+        bar = self._data.bar
         self.engine.open_position(side, bar.idx, bar.close, sl, tp)
 
-    def close_order(self, bar: Bar):
-        pnl = self.engine.close_order(bar)
+    def set_sl(self, sl: float | None):
+        self.engine.order.set_sl(sl, self._data.bar)
+    
+    def set_tp(self, tp: float | None):
+        self.engine.order.set_sl(tp, self._data.bar)
+
+    def close_order(self):
+        pnl = self.engine.close_order(self._data.bar)
         self.cumu_balance += pnl
 
-    def process_bar(self, bar: Bar):
-        pnl = self.engine.process_bar(bar)
+    def _process_bar(self):  # for Simulation to call
+        pnl = self.engine.process_bar(self._data.bar)
         self.cumu_balance += pnl
 
-    def update_money(self, bar: Bar):
+    def _update_money(self):  # for Simulation to call
         self.balance.append(self.cumu_balance)
 
+        bar = self._data.bar
         pnl = float(self.engine.unrealized_pnl(bar.close))
         self.equity.append(self.cumu_balance + pnl)

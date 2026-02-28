@@ -1,4 +1,4 @@
-from alpha_lab.backtest.account import Account, Side, OrderType
+from alpha_lab.backtest.account import Account, Side
 from alpha_lab.backtest.bot import BacktestBot, PrecomputedData
 from alpha_lab.utils import ForexData
 
@@ -20,18 +20,18 @@ class MaCrossBot(BacktestBot):
 
     def act(self, data: PrecomputedData, acc: Account):
         now = data.now
-        bar = data.bar
+        ma_short = data.ma_short[now]
+        ma_long = data.ma_long[now]
+
         order = acc.get_order()
 
-        if data.ma_short[now] > data.ma_long[now]:
-            if order:
-                if order.side == Side.SELL:
-                    acc.close_order(bar)
-            else:
-                acc.open_position(Side.BUY, bar)
+        if ma_short > ma_long:
+            if order and order.side == Side.SELL:
+                acc.close_order()
+            if not acc.have_order():
+                acc.open_position(Side.BUY)
         else:
-            if order:
-                if order.side == Side.BUY:
-                    acc.close_order(bar)
-            else:
-                acc.open_position(Side.SELL, bar)
+            if order and order.side == Side.BUY:
+                acc.close_order()
+            if not acc.have_order():
+                acc.open_position(Side.SELL)
