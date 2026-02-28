@@ -91,7 +91,12 @@ Context: After strong buying pressure, look for distribution + reversal attempt.
             # self.bars.pop()
 
         now = data.now
-        atr = data.atr[now]
+
+        atr_now = data.atr[now]
+        atr_mean = data.atr[max(0, now - 100):now].mean()
+
+        if atr_now > atr_mean:
+            return  # volatility expansion / delivery phase
 
         # Indexing:
         # bars[2] = impulse candle (volume candle)
@@ -102,17 +107,18 @@ Context: After strong buying pressure, look for distribution + reversal attempt.
         bar_confirm = self.bars[0]
 
         order = acc.get_order()
+
         if order:
             if order.type == OrderType.LIMIT:
                 acc.close_order(bar_confirm)
             return
-
+        
         body_v = self.tick_to_point(bar_volume.close - bar_volume.open)
         body_break = self.tick_to_point(bar_break.close - bar_break.open)
 
-        large_dist = 3 * atr
-        sl_dist = 1 * atr
-        tp_dist = 0.9 * atr
+        large_dist = 3 * atr_now
+        sl_dist = 0.5 * atr_now
+        tp_dist = 0.4 * atr_now
 
         # =========================
         # BUY SIDE
