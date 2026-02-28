@@ -3,6 +3,7 @@ import pandas as pd
 from rich.console import Console
 from rich.table import Table
 from rich import box
+from rich.columns import Columns
 
 import matplotlib.pyplot as plt
 import matplotlib.ticker as mticker
@@ -28,7 +29,9 @@ class SimulationResult:
         self.balance_points = pd.Series(self.acc.balance, index=self.index) * self.tens
         self.equity_points = pd.Series(self.acc.equity, index=self.index) * self.tens
 
-    def report(self):
+        self.metrics = self._compute_metrics()
+
+    def _compute_metrics(self):
         # Trades
         win = sum(1 for o in self.closed_positions if o.pnl > 0)
         loss = sum(1 for o in self.closed_positions if o.pnl < 0)
@@ -48,27 +51,45 @@ class SimulationResult:
         max_balance_dd = round(-(self.balance_points.cummax() - self.balance_points).max())
         max_equity_dd = round(-(self.equity_points.cummax() - self.equity_points).max())
 
-        # Print
-        table = Table(title=f"{self.forex_data}\n{self.bot.name}", box=box.SIMPLE_HEAVY)
+        return {
+            "Win": str(win),
+            "Loss": str(loss),
+            "Trades": str(trades),
+            "Win Rate": str(win_rate),
+            "+Point": str(pos_point),
+            "-Point": str(-neg_point),
+            "Total Point": str(total_point),
+            "Profit Factor": str(profit_factor),
+            "Average +Point": str(avg_pos_point),
+            "Average -Point": str(avg_neg_point),
+            "Max Balance DD": str(max_balance_dd),
+            "Max Equity DD": str(max_equity_dd),
+        }
 
-        table.add_column("Metric", justify="left"); table.add_column("Value", justify="right")
-        table.add_row("Win", str(win))
-        table.add_row("Loss", str(loss))
-        table.add_row("Trades", str(trades))
-        table.add_row("Win Rate", win_rate)
-        table.add_row("", "")
-        table.add_row("+Point", str(pos_point))
-        table.add_row("-Point", str(-neg_point))
-        table.add_row("Total Point", str(total_point))
-        table.add_row("Profit Factor", profit_factor)
-        table.add_row("", "")
-        table.add_row("Average +Point", avg_pos_point)
-        table.add_row("Average -Point", avg_neg_point)
-        table.add_row("", "")
-        table.add_row("Max Balance Drawdown", str(max_balance_dd))
-        table.add_row("Max Equity Drawdown", str(max_equity_dd))
+    def _print_table(self):
+        def init_table(title) -> Table:
+            t = Table(title=title, box=box.SIMPLE_HEAVY)
+            t.add_column("Metric", justify="left")
+            t.add_column("Value", justify="right")
+            return t
 
-        console.print(table)
+        def add_rows(table: Table, rows: list[str]):
+            for row in rows:
+                table.add_row(row, self.metrics[row])
+
+        t1 = init_table("Trades")
+        add_rows(t1, ["Win", "Loss", "Trades", "Win Rate"])
+
+        t2 = init_table("Points")
+        add_rows(t2, ["+Point", "-Point", "Total Point", "Max Balance DD", "Max Equity DD"])
+
+        t3 = init_table("Averages")
+        add_rows(t3, ["Average +Point", "Average -Point", "Profit Factor"])
+
+        console.print(Columns([t1, t2, t3]))
+
+    def report(self):
+        self._print_table()
 
     def visualize(self):
         fig, axes = plt.subplots(2, 1, height_ratios=[2, 1], sharex=True, figsize=(12, 6))
