@@ -1,17 +1,9 @@
 import sys
-import logging
 import argparse
 import importlib
 
 from alpha_lab.utils import ForexData
 from alpha_lab.backtest.simulation import Simulation
-
-logging.basicConfig(
-    filename="app.log",
-    level=logging.INFO,
-    format="%(levelname)s | %(message)s",
-    filemode="w"
-)
 
 
 def main():
@@ -20,7 +12,8 @@ def main():
     parser.add_argument("symbol")
     parser.add_argument("tf")
     parser.add_argument("strategy")
-    parser.add_argument("-v", "--no-visual", action="store_true")
+    parser.add_argument("-i", "--interactive", action="store_true")
+    parser.add_argument("--result_name", default="result")
     args = parser.parse_args()
 
     try:
@@ -41,8 +34,9 @@ def main():
     sim.run()
 
     sim.result.report()
-    if not args.no_visual:
-        sim.result.visualize()
+    sim.result.render(f"result.png")
+    if args.interactive:
+        sim.result.show()
 
 
 if __name__ == "__main__":

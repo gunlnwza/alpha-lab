@@ -1,3 +1,5 @@
+from pathlib import Path
+
 import pandas as pd
 
 from rich.console import Console
@@ -31,6 +33,7 @@ class SimulationResult:
         self._balance_points = pd.Series(self.acc.balance, index=self._index) * self._tens  # --for computing metrics and plotting only
 
         self.metrics = self._compute_metrics()
+        self.fig = self._build_figure()
 
     def _compute_metrics(self):
         # Trades
@@ -114,28 +117,70 @@ class SimulationResult:
                 solid_capstyle="round"
             )
 
-    def visualize(self):
-        fig, axes = plt.subplots(2, 1, height_ratios=[2, 1], sharex=True, figsize=(12, 6))
+    def _build_figure(self):
+        fig, axes = plt.subplots(
+            2, 1,
+            height_ratios=[2, 1],
+            sharex=True,
+            figsize=(12, 6)
+        )
 
-        # axes[0]
-        axes[0].plot(self.forex_data.ohlcv["close"], label=self.forex_data.symbol, linewidth=1)
+        # ── Price axis ─────────────────────────────────────────────
+        axes[0].plot(
+            self.forex_data.ohlcv["close"],
+            label=self.forex_data.symbol,
+            linewidth=1
+        )
+
         self._plot_trades(axes[0])
 
-        axes[0].set_title(f"Simulation Result | {self.forex_data} | {self.bot.name}")
+        axes[0].set_title(
+            f"Simulation Result | {self.forex_data} | {self.bot.name}"
+        )
         axes[0].set_ylabel("Price")
-        axes[0].yaxis.set_major_formatter(mticker.FormatStrFormatter(f'%.{self.forex_data.decimal_places}f'))
+        axes[0].yaxis.set_major_formatter(
+            mticker.FormatStrFormatter(
+                f'%.{self.forex_data.decimal_places}f'
+            )
+        )
         axes[0].grid(alpha=0.3)
         axes[0].legend()
 
-        # axes[1]
-        axes[1].plot(self._equity_points, label="Equity (point)", color="C0", linewidth=1)  # styled the same way as `close`
-        axes[1].plot(self._balance_points, label="Balance (point)", color="C2", linewidth=2)
+        # ── Equity axis ────────────────────────────────────────────
+        axes[1].plot(
+            self._equity_points,
+            label="Equity (point)",
+            color="C0",
+            linewidth=1
+        )
+
+        axes[1].plot(
+            self._balance_points,
+            label="Balance (point)",
+            color="C2",
+            linewidth=2
+        )
 
         axes[1].set_xlabel("Time")
         axes[1].set_ylabel("Point Diff")
         axes[1].grid(alpha=0.3)
         axes[1].legend()
 
-        # Render
         plt.tight_layout()
+
+        return fig
+
+    def render(self, filename: str) -> Path:
+        """
+        Save figure to project root.
+        """
+        output_path = Path.cwd() / filename
+        self.fig.savefig(output_path, dpi=200)
+        return output_path
+
+    def show(self):
+        """
+        Show interactive matplotlib window.
+        """
+        plt.figure(self.fig.number)
         plt.show()
