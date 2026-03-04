@@ -7,19 +7,19 @@ def drop_weekend(df: pd.DataFrame) -> pd.DataFrame:
     return df[((weekday >= 0) & (weekday <= 4))]
 
 
-def divide_timeseries(df: pd.DataFrame, chunk_size: str = "W") -> list[pd.DataFrame]:
+def split_timeseries(df: pd.DataFrame, freq: str = "W") -> list[pd.DataFrame]:
     """
-    Divide timeseries dataframe into chunks of wanted size.
+    Split a time series dataframe into chunks of the given frequency.
 
-    - `chunk_size` (like what Pandas use):
+    - `freq` (like what Pandas use):
         - 'h': hour
         - 'D': day
         - 'W': week
         - 'M': month
     """
-    if chunk_size not in ('h', 'D', 'W', 'M'):
+    if freq not in ('h', 'D', 'W', 'M'):
         raise ValueError("Invalid chunk size")
-    return [g for _, g in df.groupby(pd.Grouper(freq=chunk_size))]
+    return [g for _, g in df.groupby(pd.Grouper(freq=freq))]
 
 
 def inverse_ohlcv(ohlcv: pd.DataFrame):

@@ -24,11 +24,14 @@ log
 
 TODO
 
-# Images
+# Images & Video
 imgs
 *.png
 *.jpg
 *.jpeg
+
+*.mp4
+*.gif
 
 # Python
 venv
