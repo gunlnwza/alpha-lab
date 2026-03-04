@@ -21,7 +21,7 @@ class _SafeArrayView:
         now = self._parent.now
 
         if isinstance(idx, int):
-            if idx > now:
+            if idx > now or idx < 0:
                 raise IndexError("Lookahead detected")
         elif isinstance(idx, slice):
             if idx.stop is not None and idx.stop > now + 1:
