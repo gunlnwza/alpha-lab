@@ -22,6 +22,7 @@ def load_parquet(source: str, symbol: str, tf: str) -> pd.DataFrame:
     return pd.read_parquet(path)
 
 
+# TODO: review design
 class ForexData:
     def __init__(self, source: str, symbol: str, tf: str):
         self.source = source

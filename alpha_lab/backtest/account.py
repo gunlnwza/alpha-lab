@@ -77,6 +77,11 @@ class OrderEngine:
         return pnl
 
 
+# TODO: update interface
+# - open_buy_position
+# - open_sell_position
+# - open_buy_limit
+# - open_sell_limit
 class Account:
     def __init__(self, data: PrecomputedData):
         self._data = data

@@ -30,7 +30,6 @@ class _SafeArrayView:
         return self._array[idx]
 
 
-# TODO: move to data.py
 class PrecomputedData:
     def __init__(self, forex_data: ForexData):
         object.__setattr__(self, "_forex_data", forex_data)
